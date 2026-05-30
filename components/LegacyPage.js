@@ -1,0 +1,33 @@
+import Head from 'next/head';
+import Script from 'next/script';
+
+export default function LegacyPage({
+  title,
+  description,
+  bodyHtml,
+  scripts = [],
+  extraHead = null,
+}) {
+  return (
+    <>
+      <Head>
+        <meta charSet="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="theme-color" content="#f3e4d3" />
+        <link rel="icon" href="/assets/habibvelora-logo-transparent.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/assets/habibvelora-logo-transparent.png" />
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <meta name="ga-id" content="" />
+        <meta name="facebook-pixel-id" content="" />
+        {extraHead}
+      </Head>
+
+      <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+
+      {scripts.map((src) => (
+        <Script key={src} src={src} strategy="afterInteractive" />
+      ))}
+    </>
+  );
+}

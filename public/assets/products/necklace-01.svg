@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" role="img" aria-label="سلسلة فاخرة">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffdfc"/>
+      <stop offset="0.45" stop-color="#f8e7e1"/>
+      <stop offset="1" stop-color="#ead2dc"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="36%" r="42%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.96"/>
+      <stop offset="0.42" stop-color="#f7e0e1" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#f2c8cf" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fae7bb"/>
+      <stop offset="0.48" stop-color="#d9b56f"/>
+      <stop offset="1" stop-color="#a67842"/>
+    </linearGradient>
+    <linearGradient id="rose" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f9dce4"/>
+      <stop offset="1" stop-color="#d884a0"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#8d5f69" flood-opacity="0.22"/>
+    </filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="1200" fill="url(#bg)"/>
+  <circle cx="600" cy="360" r="345" fill="url(#glow)"/>
+  <ellipse cx="600" cy="860" rx="260" ry="74" fill="#8f6570" opacity="0.11" filter="url(#soft)"/>
+  <ellipse cx="600" cy="575" rx="360" ry="240" fill="#c98c99" opacity="0.07" filter="url(#soft)"/>
+
+  <g filter="url(#shadow)">
+    <path d="M366 420 C 455 270, 745 270, 834 420" fill="none" stroke="url(#gold)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M394 448 C 470 332, 730 332, 806 448" fill="none" stroke="#f5d9cf" stroke-width="8" stroke-linecap="round" opacity="0.8"/>
+
+    <circle cx="370" cy="420" r="12" fill="url(#rose)"/>
+    <circle cx="830" cy="420" r="12" fill="url(#rose)"/>
+
+    <g>
+      <circle cx="424" cy="356" r="7" fill="#fff7f4"/>
+      <circle cx="480" cy="320" r="7" fill="#fff7f4"/>
+      <circle cx="540" cy="300" r="7" fill="#fff7f4"/>
+      <circle cx="600" cy="292" r="7" fill="#fff7f4"/>
+      <circle cx="660" cy="300" r="7" fill="#fff7f4"/>
+      <circle cx="720" cy="320" r="7" fill="#fff7f4"/>
+      <circle cx="776" cy="356" r="7" fill="#fff7f4"/>
+    </g>
+
+    <g transform="translate(600 610)">
+      <path d="M0 -120 C 70 -120, 132 -58, 132 10 C 132 118, 58 178, 0 236 C -58 178, -132 118, -132 10 C -132 -58, -70 -120, 0 -120Z" fill="none" stroke="url(#gold)" stroke-width="16" stroke-linejoin="round"/>
+      <path d="M0 -82 C 48 -82, 88 -42, 88 6 C 88 85, 41 128, 0 170 C -41 128, -88 85, -88 6 C -88 -42, -48 -82, 0 -82Z" fill="#fff7f5" opacity="0.96"/>
+      <path d="M0 -55 C 34 -55, 62 -27, 62 5 C 62 57, 28 86, 0 114 C -28 86, -62 57, -62 5 C -62 -27, -34 -55, 0 -55Z" fill="url(#rose)"/>
+      <circle cx="0" cy="2" r="17" fill="#fff7f4"/>
+      <circle cx="0" cy="2" r="8" fill="#ffdce5"/>
+      <circle cx="-34" cy="30" r="7" fill="#fff"/>
+      <circle cx="34" cy="30" r="7" fill="#fff"/>
+    </g>
+  </g>
+
+  <g opacity="0.9">
+    <circle cx="260" cy="355" r="18" fill="#fff"/>
+    <circle cx="930" cy="420" r="14" fill="#fff"/>
+    <circle cx="900" cy="205" r="10" fill="#fff"/>
+    <path d="M150 560 l22 10 -22 10 -10 22 -10 -22 -22 -10 22 -10 10 -22z" fill="#fff4d6" opacity="0.75"/>
+    <path d="M1010 575 l16 8 -16 8 -8 16 -8 -16 -16 -8 16 -8 8 -16z" fill="#fff4d6" opacity="0.75"/>
+  </g>
+</svg>

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" role="img" aria-label="طقم أقراط فاخر">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffaf9"/>
+      <stop offset="0.45" stop-color="#f8e6e2"/>
+      <stop offset="1" stop-color="#eed0d7"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="36%" r="42%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="0.4" stop-color="#f6dfe0" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#f2c9cf" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f9e4b3"/>
+      <stop offset="0.45" stop-color="#d8b16c"/>
+      <stop offset="1" stop-color="#a67842"/>
+    </linearGradient>
+    <linearGradient id="rose" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8d7e0"/>
+      <stop offset="1" stop-color="#d989a4"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#8d5f69" flood-opacity="0.2"/>
+    </filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="1200" fill="url(#bg)"/>
+  <ellipse cx="600" cy="610" rx="350" ry="280" fill="#c98c99" opacity="0.09" filter="url(#soft)"/>
+  <circle cx="600" cy="390" r="330" fill="url(#glow)"/>
+  <ellipse cx="600" cy="860" rx="250" ry="70" fill="#8f6570" opacity="0.12" filter="url(#soft)"/>
+
+  <g filter="url(#shadow)">
+    <g transform="translate(460 258)">
+      <circle cx="0" cy="0" r="34" fill="url(#rose)"/>
+      <circle cx="0" cy="0" r="14" fill="#fff7f4"/>
+      <rect x="-4" y="28" width="8" height="180" rx="4" fill="url(#gold)"/>
+      <ellipse cx="0" cy="215" rx="58" ry="74" fill="url(#rose)"/>
+      <ellipse cx="0" cy="215" rx="28" ry="38" fill="#fff8f6"/>
+      <circle cx="0" cy="318" r="15" fill="#ffd9e1"/>
+      <circle cx="0" cy="318" r="7" fill="#ffffff"/>
+    </g>
+    <g transform="translate(740 258)">
+      <circle cx="0" cy="0" r="34" fill="url(#rose)"/>
+      <circle cx="0" cy="0" r="14" fill="#fff7f4"/>
+      <rect x="-4" y="28" width="8" height="180" rx="4" fill="url(#gold)"/>
+      <ellipse cx="0" cy="215" rx="58" ry="74" fill="url(#rose)"/>
+      <ellipse cx="0" cy="215" rx="28" ry="38" fill="#fff8f6"/>
+      <circle cx="0" cy="318" r="15" fill="#ffd9e1"/>
+      <circle cx="0" cy="318" r="7" fill="#ffffff"/>
+    </g>
+  </g>
+
+  <g opacity="0.9">
+    <circle cx="280" cy="360" r="18" fill="#fff"/>
+    <circle cx="930" cy="410" r="14" fill="#fff"/>
+    <circle cx="890" cy="220" r="10" fill="#fff"/>
+    <circle cx="340" cy="240" r="8" fill="#fff"/>
+    <path d="M170 520 l22 10 -22 10 -10 22 -10 -22 -22 -10 22 -10 10 -22z" fill="#fff4d6" opacity="0.7"/>
+    <path d="M1000 560 l16 8 -16 8 -8 16 -8 -16 -16 -8 16 -8 8 -16z" fill="#fff4d6" opacity="0.7"/>
+  </g>
+</svg>

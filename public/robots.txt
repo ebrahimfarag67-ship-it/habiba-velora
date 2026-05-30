@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://habibvelora.vercel.app/sitemap.xml
