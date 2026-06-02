@@ -1,4 +1,4 @@
-(() => {
+﻿(() => {
   const store = window.veloraStore || {};
   const storageKeys = store.storageKeys || {
     products: 'velora-store-v4-products',
@@ -7,7 +7,6 @@
     theme: 'velora-store-v4-theme',
   };
   const legacyStorageKeys = store.legacyStorageKeys || {
-    products: ['velora-store-v3-products', 'velora-store-v2-products'],
     cart: ['velora-store-v3-cart', 'velora-store-v2-cart'],
     wishlist: ['velora-store-v3-wishlist', 'velora-store-v2-wishlist'],
     theme: ['velora-store-v3-theme', 'velora-store-v2-theme'],
@@ -24,12 +23,12 @@
     return;
   }
 
-  const moneyFormatter = new Intl.NumberFormat('ar-EG-u-nu-arab');
-  const countFormatter = new Intl.NumberFormat('ar-EG-u-nu-arab', {
+  const moneyFormatter = new Intl.NumberFormat('ar-EG-u-nu-latn');
+  const countFormatter = new Intl.NumberFormat('ar-EG-u-nu-latn', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
-  const decimalFormatter = new Intl.NumberFormat('ar-EG-u-nu-arab', {
+  const decimalFormatter = new Intl.NumberFormat('ar-EG-u-nu-latn', {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
@@ -41,6 +40,8 @@
     wishlist: loadWishlist(),
     productId: new URLSearchParams(window.location.search).get('id') || '',
     galleryIndex: 0,
+    modelIndex: 0,
+    priceOptionIndex: null,
     color: '',
     size: '',
     quantity: 1,
@@ -122,9 +123,17 @@
       .replaceAll("'", '&#39;');
   }
 
+  function hasGarbledText(value) {
+    const text = String(value ?? '').trim();
+    return /\?{2,}/.test(text) || /[\u00d8\u00d9\u00e2\ufffd]{2,}/.test(text);
+  }
+
   function normalizeText(value, fallback = '') {
     const text = String(value ?? '').trim();
-    return text || fallback;
+    if (!text || hasGarbledText(text)) {
+      return fallback;
+    }
+    return text;
   }
 
   function toNumber(value, fallback = 0) {
@@ -132,8 +141,35 @@
     return Number.isFinite(number) ? number : fallback;
   }
 
+  function parseLocalizedNumber(value) {
+    const normalized = String(value || '')
+      .replace(/[٠-٩]/g, (digit) => '٠١٢٣٤٥٦٧٨٩'.indexOf(digit))
+      .replace(/[۰-۹]/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))
+      .replace(/[^\d.]/g, '');
+    const number = Number(normalized);
+    return Number.isFinite(number) ? number : 0;
+  }
+
+  function normalizePriceOptions(value) {
+    const source = Array.isArray(value) ? value : [];
+    return source
+      .map((option) => ({
+        label: normalizeText(option?.label || option?.name || ''),
+        price: Math.max(0, parseLocalizedNumber(option?.price)),
+      }))
+      .filter((option) => option.label && option.price > 0);
+  }
+
   function formatMoney(value) {
     return `${moneyFormatter.format(Math.max(0, Math.round(toNumber(value))))} ج.م`;
+  }
+
+  function formatProductPriceOptions(product) {
+    const options = normalizePriceOptions(product?.priceOptions);
+    if (options.length) {
+      return options.map((option) => `${option.label}: ${formatMoney(option.price)}`).join('\n');
+    }
+    return formatMoney(product?.price || 0);
   }
 
   function formatCount(value) {
@@ -156,11 +192,33 @@
     return dedupeList(images.map((item) => normalizeText(item)).filter(Boolean));
   }
 
+  function normalizeProductModels(models, gallery = []) {
+    return (Array.isArray(models) ? models : [])
+      .map((model, index) => {
+        const image = normalizeText(model?.image || gallery[index] || '');
+        const modelGallery = dedupeList([
+          image,
+          ...(Array.isArray(model?.gallery) ? model.gallery.map((item) => normalizeText(item)) : []),
+        ]);
+        return {
+          id: normalizeText(model?.id, `model-${index + 1}`),
+          name: normalizeText(model?.name, `موديل ${index + 1}`),
+          image,
+          gallery: modelGallery,
+        };
+      })
+      .filter((model) => model.name || model.image);
+  }
+
   function normalizeProduct(product, index = 0) {
     const source = product || {};
     const gallery = getProductGallery(source);
+    const models = normalizeProductModels(source.models, gallery);
     const price = Math.max(0, toNumber(source.price, 0));
-    const compareAtPrice = Math.max(0, toNumber(source.compareAtPrice, price ? Math.round(price * 1.18) : 0));
+    const priceOptions = normalizePriceOptions(source.priceOptions);
+    const optionPrices = priceOptions.map((option) => option.price).filter((priceValue) => priceValue > 0);
+    const finalPrice = price || (optionPrices.length ? Math.min(...optionPrices) : 0);
+    const compareAtPrice = Math.max(0, toNumber(source.compareAtPrice, finalPrice ? Math.round(finalPrice * 1.15) : 0));
     const colors = Array.isArray(source.colors) ? source.colors.map((item) => normalizeText(item)).filter(Boolean) : [];
     const sizes = Array.isArray(source.sizes) ? source.sizes.map((item) => normalizeText(item)).filter(Boolean) : [];
 
@@ -171,7 +229,7 @@
       badge: normalizeText(source.badge, 'مميز'),
       note: normalizeText(source.note, 'تفاصيل أنيقة وواضحة للمنتج.'),
       details: normalizeText(source.details, normalizeText(source.note, 'تفاصيل أنيقة وواضحة للمنتج.')),
-      price,
+      price: finalPrice,
       stock: Math.max(0, Math.floor(toNumber(source.stock, 0))),
       compareAtPrice,
       discount: Math.max(0, toNumber(source.discount, 0)),
@@ -181,17 +239,22 @@
       hoverImage: gallery[1] || normalizeText(source.hoverImage, gallery[0] || ''),
       sideImage: gallery[2] || normalizeText(source.sideImage, ''),
       gallery,
+      models,
+      priceOptions,
       colors,
       sizes,
+      createdAt: normalizeText(source.createdAt, ''),
       tone: Number.isFinite(Number(source.tone)) ? Number(source.tone) : index,
       monogram: normalizeText(source.monogram, normalizeText(source.name, 'ع').charAt(0) || 'ع'),
     };
   }
 
   function loadProducts() {
-    const stored = loadStoredValueWithFallback(storageKeys.products, legacyStorageKeys.products, null);
-    const base = Array.isArray(stored) && stored.length ? stored : fallbackProducts;
-    return base.map((product, index) => normalizeProduct(product, index));
+    const stored = loadStoredValueWithFallback(storageKeys.products, legacyStorageKeys.products || [], null);
+    if (Array.isArray(stored) && stored.length) {
+      return stored.map((product, index) => normalizeProduct(product, index));
+    }
+    return fallbackProducts.map((product, index) => normalizeProduct(product, index));
   }
 
   function loadCart() {
@@ -202,6 +265,108 @@
   function loadWishlist() {
     const stored = loadStorage(storageKeys.wishlist, []);
     return Array.isArray(stored) ? stored.map((item) => normalizeText(item)).filter(Boolean) : [];
+  }
+
+  async function fetchReviewData() {
+    try {
+      const response = await fetch('/api/reviews', { cache: 'no-store' });
+      if (!response.ok) {
+        return { reviews: [], summary: {} };
+      }
+      const payload = await response.json();
+      return {
+        reviews: Array.isArray(payload.reviews) ? payload.reviews : [],
+        summary: payload && typeof payload.summary === 'object' ? payload.summary : {},
+      };
+    } catch (error) {
+      console.warn('تعذر تحميل تقييمات المنتجات', error);
+      return { reviews: [], summary: {} };
+    }
+  }
+
+  function applyProductReviewSummary(summary) {
+    state.products = state.products.map((product) => {
+      const review = summary[product.id];
+      if (!review || !review.count) {
+        return { ...product, rating: 0, reviewCount: 0 };
+      }
+      return {
+        ...product,
+        rating: Math.max(0, Math.min(5, toNumber(review.rating, 0))),
+        reviewCount: Math.max(0, Math.floor(toNumber(review.count, 0))),
+      };
+    });
+  }
+
+  async function submitProductReview(form) {
+    if (!state.product) {
+      return;
+    }
+    const formData = new FormData(form);
+    const rating = Number(formData.get('rating') || 0);
+    const submitButton = form.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: state.product.id,
+          rating,
+          name: normalizeText(formData.get('name'), 'عميل'),
+          comment: normalizeText(formData.get('comment')),
+        }),
+      });
+      if (!response.ok) {
+        throw new Error('review failed');
+      }
+      const data = await fetchReviewData();
+      applyProductReviewSummary(data.summary);
+      state.product = getProduct(state.productId) || state.products[0] || null;
+      form.reset();
+      showToast('تم إرسال التقييم', 'شكرًا لمشاركتك رأيك في المنتج.', 'success');
+      render();
+    } catch (error) {
+      showToast('تعذر إرسال التقييم', 'حاول مرة أخرى بعد لحظات.', 'error');
+    } finally {
+      submitButton.disabled = false;
+    }
+  }
+
+  async function fetchProductsFromDatabase() {
+    try {
+      const response = await fetch('/api/products', { cache: 'no-store' });
+      if (!response.ok) {
+        return { configured: false, products: [] };
+      }
+      const payload = await response.json();
+      return {
+        configured: Boolean(payload.configured),
+        products: Array.isArray(payload.products) ? payload.products : [],
+      };
+    } catch (error) {
+      console.warn('تعذر تحميل تقييمات المنتجات', error);
+      return { configured: false, products: [] };
+    }
+  }
+
+  async function syncProductsFromDatabase() {
+    const result = await fetchProductsFromDatabase();
+    if (!result.configured) {
+      return;
+    }
+
+    state.products = result.products.map((product, index) => normalizeProduct(product, index));
+    applyProductReviewSummary((await fetchReviewData()).summary);
+    saveStorage(storageKeys.products, state.products);
+    state.product = getProduct(state.productId) || state.products[0] || null;
+    if (state.product) {
+      state.productId = state.product.id;
+      state.color = state.product.colors?.[0] || '';
+      state.size = state.product.sizes?.[0] || '';
+    }
+    updateCartCounter();
+    render();
   }
 
   function loadTheme() {
@@ -237,7 +402,7 @@
     const parts = [];
     if (color) parts.push(color);
     if (size) parts.push(size);
-    return parts.join(' • ') || 'بدون خيارات';
+    return parts.join(' - ') || 'بدون خيارات';
   }
 
   function availabilityLabel(stock) {
@@ -246,7 +411,7 @@
       return 'نفد المخزون';
     }
     if (value <= 3) {
-      return 'متاح قليلًا';
+      return 'آخر قطع';
     }
     return 'متوفر الآن';
   }
@@ -255,7 +420,33 @@
     return Math.max(0, toNumber(stock)) <= 3 ? 'low' : '';
   }
 
+  function isNewProduct(product) {
+    const createdAt = product?.createdAt ? new Date(product.createdAt) : null;
+    if (createdAt && !Number.isNaN(createdAt.getTime())) {
+      return Date.now() - createdAt.getTime() <= 1000 * 60 * 60 * 24 * 14;
+    }
+    return String(product?.badge || '').includes('جديد');
+  }
+
+  function smartBadge(product) {
+    if (toNumber(product?.stock, 0) > 0 && toNumber(product?.stock, 0) <= 3) {
+      return { label: 'آخر قطع', className: 'urgent' };
+    }
+    if (isNewProduct(product)) {
+      return { label: 'وصل حديثًا', className: 'new' };
+    }
+    return {
+      label: normalizeText(product?.badge, 'مميز'),
+      className: String(product?.badge || '').includes('مميز') ? 'hot' : '',
+    };
+  }
+
   function calculateDiscount(product) {
+    const explicitDiscount = toNumber(product.discount, 0);
+    if (explicitDiscount > 0) {
+      return Math.round(explicitDiscount);
+    }
+
     const compareAt = toNumber(product.compareAtPrice, 0);
     const price = toNumber(product.price, 0);
     if (compareAt <= price || price <= 0) {
@@ -271,7 +462,7 @@
     const icon = themeToggle.querySelector('span');
     const label = themeToggle.querySelector('small');
     if (icon) {
-      icon.textContent = state.theme === 'dark' ? '☀' : '☾';
+      icon.textContent = '';
     }
     if (label) {
       label.textContent = state.theme === 'dark' ? 'فاتح' : 'داكن';
@@ -355,8 +546,8 @@
     ).onfinish = () => flyer.remove();
   }
 
-  function getCartLineId(productId, color, size) {
-    return [productId, color || '-', size || '-'].join('|');
+  function getCartLineId(productId, color, size, option = '') {
+    return [productId, option || '-', color || '-', size || '-'].join('|');
   }
 
   function addToCart(product, qty = 1, variant = {}, sourceElement = null) {
@@ -365,9 +556,17 @@
       return;
     }
 
+    const priceOptions = normalizePriceOptions(product.priceOptions);
+    if (priceOptions.length > 1 && !normalizeText(variant.option)) {
+      showToast('اختار النوع أولًا', 'اختار نحاس أو استانلس قبل الإضافة للسلة.', 'warning');
+      return;
+    }
+
     const selectedColor = normalizeText(variant.color || product.colors[0] || '');
     const selectedSize = normalizeText(variant.size || product.sizes[0] || '');
-    const lineId = getCartLineId(product.id, selectedColor, selectedSize);
+    const selectedOption = normalizeText(variant.option || '');
+    const selectedPrice = Math.max(0, toNumber(variant.price, 0));
+    const lineId = getCartLineId(product.id, selectedColor, selectedSize, selectedOption);
     const existing = state.cart.find((item) => item.id === lineId);
     const nextQty = Math.min(product.stock, (Number(existing?.qty) || 0) + qty);
 
@@ -380,6 +579,8 @@
         qty: nextQty,
         color: selectedColor,
         size: selectedSize,
+        option: selectedOption,
+        price: selectedPrice,
       });
     }
 
@@ -393,7 +594,7 @@
     const index = state.wishlist.indexOf(productId);
     if (index !== -1) {
       state.wishlist.splice(index, 1);
-      showToast('تمت الإزالة من المفضلة', getProduct(productId)?.name || '', 'success');
+      showToast('أضيف إلى المفضلة', getProduct(productId)?.name || '', 'success');
     } else {
       state.wishlist.unshift(productId);
       showToast('أضيف إلى المفضلة', getProduct(productId)?.name || '', 'success');
@@ -416,7 +617,7 @@
     document.querySelector('meta[property="og:title"]')?.setAttribute('content', `${product.name} | HabibaVelora`);
     document.querySelector('meta[property="og:description"]')?.setAttribute('content', description);
     if (productOgImage) {
-      productOgImage.setAttribute('content', getProductGalleryImage(product) || 'assets/habibvelora-hero-photo.png');
+      productOgImage.setAttribute('content', getProductGalleryImage(product) || '/assets/habiba-velora-hero.jpg');
     }
   }
 
@@ -435,7 +636,24 @@
     }
 
     const product = state.product;
-    const gallery = getProductGallery(product).length ? getProductGallery(product) : [product.image || ''];
+    const models = normalizeProductModels(product.models, product.gallery);
+    const priceOptions = normalizePriceOptions(product.priceOptions);
+    if (priceOptions.length === 1 && state.priceOptionIndex === null) {
+      state.priceOptionIndex = 0;
+    }
+    if (state.modelIndex >= models.length) {
+      state.modelIndex = 0;
+    }
+    if (state.priceOptionIndex !== null && state.priceOptionIndex >= priceOptions.length) {
+      state.priceOptionIndex = null;
+    }
+    const activePriceOption = state.priceOptionIndex === null ? null : (priceOptions[state.priceOptionIndex] || null);
+    const mustChoosePriceOption = priceOptions.length > 1 && !activePriceOption;
+    const activePrice = activePriceOption ? activePriceOption.price : (priceOptions.length ? 0 : product.price);
+    const activeCompareAtPrice = activePrice ? Math.round(activePrice * 1.15) : product.compareAtPrice;
+    const activeModel = models[state.modelIndex] || null;
+    const modelGallery = activeModel ? dedupeList([activeModel.image, ...activeModel.gallery]) : [];
+    const gallery = modelGallery.length ? modelGallery : (getProductGallery(product).length ? getProductGallery(product) : [product.image || '']);
     if (state.galleryIndex >= gallery.length) {
       state.galleryIndex = 0;
     }
@@ -447,27 +665,22 @@
     const selectedSize = state.size || sizes[0];
     const rating = product.rating > 0 ? `${decimalFormatter.format(product.rating)}/5` : '';
     const discount = calculateDiscount(product);
+    const badge = smartBadge(product);
     const relatedProducts = buildRelatedProducts(product);
 
     updateMeta(product);
 
     mount.innerHTML = `
-      <section class="section-block content-hero">
-        <p class="eyebrow">صفحة المنتج</p>
-        <h1>${escapeHtml(product.name)}</h1>
-        <p class="product-page-copy">${escapeHtml(product.note || product.details)}</p>
-      </section>
-
-      <section class="section-block">
+      <section class="section-block product-page-shell">
         <div class="product-page-layout">
           <article class="product-page-gallery">
             <div class="product-page-panel product-page-main">
-              <img src="${escapeHtml(activeImage)}" alt="${escapeHtml(product.name)}" />
+              ${activeImage ? `<img src="${escapeHtml(activeImage)}" alt="${escapeHtml(product.name)}" loading="eager" fetchpriority="high" decoding="async" />` : `<div class="empty-state compact"><strong>&#1575;&#1604;&#1589;&#1608;&#1585;&#1577; &#1594;&#1610;&#1585; &#1605;&#1578;&#1575;&#1581;&#1577;</strong></div>`}
             </div>
             <div class="product-page-thumbnails">
               ${gallery.map((src, index) => `
                 <button type="button" data-action="gallery" data-index="${index}" class="${index === state.galleryIndex ? 'active' : ''}">
-                  <img src="${escapeHtml(src)}" alt="${escapeHtml(product.name)} ${index + 1}" />
+                  <img src="${escapeHtml(src)}" alt="${escapeHtml(product.name)} ${index + 1}" loading="eager" decoding="async" />
                 </button>
               `).join('')}
             </div>
@@ -476,7 +689,7 @@
           <aside class="product-page-info">
             <div class="product-page-summary">
               <div class="product-modal-badges">
-                <span class="product-badge${String(product.badge).includes('مميز') ? ' hot' : ''}">${escapeHtml(product.badge)}</span>
+                <span class="product-badge ${escapeHtml(badge.className)}">${escapeHtml(badge.label)}</span>
                 <span class="stock-pill ${availabilityClass(product.stock)}">${escapeHtml(availabilityLabel(product.stock))}</span>
               </div>
 
@@ -485,17 +698,44 @@
 
               ${rating ? `
                 <div class="product-modal-rating">
-                  <span class="product-stars">★★★★★</span>
+                  <span class="product-stars">&#1578;&#1602;&#1610;&#1610;&#1605; &#1575;&#1604;&#1593;&#1605;&#1604;&#1575;&#1569;</span>
                   <strong>${escapeHtml(rating)}</strong>
                   <small>${formatCount(product.reviewCount)} مراجعة</small>
                 </div>
               ` : ''}
 
-              <div class="product-modal-price">
-                <strong class="product-price">${escapeHtml(formatMoney(product.price))}</strong>
-                ${product.compareAtPrice > product.price ? `<del class="product-old-price">${escapeHtml(formatMoney(product.compareAtPrice))}</del>` : ''}
-                ${discount ? `<span class="discount-pill">خصم ${escapeHtml(formatCount(discount))}%</span>` : ''}
+              <div class="product-modal-price smooth-price">
+                <strong class="product-price">${mustChoosePriceOption ? 'اختار النوع لعرض السعر' : escapeHtml(formatMoney(activePrice))}</strong>
+                ${activePrice > 0 && activeCompareAtPrice > activePrice ? `<del class="product-old-price">${escapeHtml(formatMoney(activeCompareAtPrice))}</del>` : ''}
+                ${activePrice > 0 && discount ? `<span class="discount-pill">خصم ${escapeHtml(formatCount(discount))}%</span>` : ''}
               </div>
+
+              ${priceOptions.length ? `
+                <div class="variant-block">
+                  <span class="variant-label">اختيارات السعر</span>
+                  <div class="variant-group">
+                    ${priceOptions.map((option, index) => `
+                      <button type="button" class="variant-chip${index === state.priceOptionIndex ? ' active' : ''}" data-action="select-price-option" data-index="${index}">
+                        ${escapeHtml(option.label)} - ${escapeHtml(formatMoney(option.price))}
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+
+              ${models.length ? `
+                <div class="variant-block model-picker">
+                  <span class="variant-label">الشكل / الموديل</span>
+                  <div class="model-choice-grid">
+                    ${models.map((model, index) => `
+                      <button type="button" class="model-choice${index === state.modelIndex ? ' active' : ''}" data-action="select-model" data-index="${index}">
+                        ${model.image ? `<img src="${escapeHtml(model.image)}" alt="${escapeHtml(model.name)}" />` : ''}
+                        <span>${escapeHtml(model.name)}</span>
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
 
               <div class="variant-block">
                 <span class="variant-label">الألوان</span>
@@ -518,45 +758,38 @@
               <div class="variant-block">
                 <span class="variant-label">الكمية</span>
                 <div class="quantity-stepper">
-                  <button type="button" data-action="quantity-change" data-delta="-1" aria-label="إنقاص">−</button>
+                  <button type="button" data-action="quantity-change" data-delta="-1" aria-label="إنقاص">-</button>
                   <strong>${formatCount(state.quantity)}</strong>
                   <button type="button" data-action="quantity-change" data-delta="1" aria-label="زيادة">+</button>
                 </div>
               </div>
 
               <div class="product-modal-actions">
-                <button type="button" class="primary-btn" data-action="add-to-cart">أضف للسلة</button>
+                <button type="button" class="primary-btn" data-action="add-to-cart" ${mustChoosePriceOption ? 'disabled' : ''}>${mustChoosePriceOption ? 'اختار النوع أولًا' : 'أضف للسلة'}</button>
                 <button type="button" class="secondary-btn" data-action="wishlist">
                   ${state.wishlist.includes(product.id) ? 'إزالة من المفضلة' : 'أضف للمفضلة'}
                 </button>
               </div>
+
+              <form class="product-review-form" data-review-form>
+                <div>
+                  <span class="variant-label">قيّم المنتج</span>
+                  <p>التقييمات تظهر بعد مشاركة العملاء فقط.</p>
+                </div>
+                <select name="rating" required aria-label="اختيار التقييم">
+                  <option value="">اختر التقييم</option>
+                  <option value="5">5 نجوم</option>
+                  <option value="4">4 نجوم</option>
+                  <option value="3">3 نجوم</option>
+                  <option value="2">2 نجوم</option>
+                  <option value="1">1 نجمة</option>
+                </select>
+                <input name="name" type="text" placeholder="اسمك اختياري" />
+                <textarea name="comment" rows="3" placeholder="اكتب رأيك اختياري"></textarea>
+                <button type="submit" class="secondary-btn">إرسال التقييم</button>
+              </form>
             </div>
 
-            <div class="product-page-benefits">
-              <article class="product-page-benefit">
-                <strong>صور متعددة</strong>
-                <p>واجهة واضحة للمنتج من أكثر من زاوية مع عرض سريع للصورة النشطة.</p>
-              </article>
-              <article class="product-page-benefit">
-                <strong>اختيار مرن</strong>
-                <p>حدد اللون والمقاس والكمية قبل الإضافة مباشرة للسلة.</p>
-              </article>
-              <article class="product-page-benefit">
-                <strong>تجربة منظمة</strong>
-                <p>صفحة خفيفة وسريعة ومناسبة للموبايل والتابلت واللاب.</p>
-              </article>
-            </div>
-
-            <div class="product-page-support-grid">
-              <article class="product-page-support">
-                <strong>دفع متاح</strong>
-                <p>عند الاستلام، فودافون كاش، وإنستاباي.</p>
-              </article>
-              <article class="product-page-support">
-                <strong>إرجاع منظم</strong>
-                <p>مرجع واضح للفاتورة والمرتجعات بعد الشراء.</p>
-              </article>
-            </div>
           </aside>
         </div>
       </section>
@@ -575,7 +808,7 @@
               <img src="${escapeHtml(getProductGalleryImage(item))}" alt="${escapeHtml(item.name)}" />
               <strong>${escapeHtml(item.name)}</strong>
               <span>${escapeHtml(item.category)}</span>
-              <span>${escapeHtml(formatMoney(item.price))}</span>
+              <span>${escapeHtml(formatProductPriceOptions(item))}</span>
             </a>
           `).join('') : `
             <div class="empty-state compact">
@@ -603,6 +836,13 @@
       return;
     }
 
+    if (action === 'select-model') {
+      state.modelIndex = Number(actionButton.dataset.index || 0);
+      state.galleryIndex = 0;
+      render();
+      return;
+    }
+
     if (action === 'select-color') {
       state.color = normalizeText(actionButton.dataset.value);
       render();
@@ -615,6 +855,12 @@
       return;
     }
 
+    if (action === 'select-price-option') {
+      state.priceOptionIndex = Number(actionButton.dataset.index || 0);
+      render();
+      return;
+    }
+
     if (action === 'quantity-change') {
       const delta = Number(actionButton.dataset.delta || 0);
       state.quantity = Math.max(1, Math.min(state.product?.stock || 1, state.quantity + delta));
@@ -623,7 +869,18 @@
     }
 
     if (action === 'add-to-cart') {
-      addToCart(state.product, state.quantity, { color: state.color, size: state.size }, mount.querySelector('.product-page-main'));
+      const priceOptions = normalizePriceOptions(state.product.priceOptions);
+      const activePriceOption = state.priceOptionIndex === null ? null : (priceOptions[state.priceOptionIndex] || null);
+      if (priceOptions.length > 1 && !activePriceOption) {
+        showToast('اختار النوع أولًا', 'اختار نحاس أو استانلس قبل الإضافة للسلة.', 'warning');
+        return;
+      }
+      addToCart(state.product, state.quantity, {
+        color: state.color,
+        size: state.size,
+        option: activePriceOption?.label || '',
+        price: activePriceOption?.price || 0,
+      }, mount.querySelector('.product-page-main'));
       return;
     }
 
@@ -634,6 +891,14 @@
 
   function bindEvents() {
     mount.addEventListener('click', handleClick);
+    mount.addEventListener('submit', (event) => {
+      const form = event.target.closest('[data-review-form]');
+      if (!form) {
+        return;
+      }
+      event.preventDefault();
+      submitProductReview(form);
+    });
 
     themeToggle?.addEventListener('click', () => {
       setTheme(state.theme === 'dark' ? 'light' : 'dark');
@@ -656,4 +921,6 @@
   setTheme(state.theme);
   updateCartCounter();
   render();
+  syncProductsFromDatabase();
 })();
+

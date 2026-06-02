@@ -7,7 +7,10 @@ export default function LegacyPage({
   bodyHtml,
   scripts = [],
   extraHead = null,
+  initialProducts = [],
 }) {
+  const initialStoreScript = `window.veloraInitialProducts=${JSON.stringify(initialProducts).replace(/</g, '\\u003c')};`;
+
   return (
     <>
       <Head>
@@ -25,8 +28,16 @@ export default function LegacyPage({
 
       <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
 
+      <Script id="velora-initial-products" strategy="beforeInteractive">
+        {initialStoreScript}
+      </Script>
+
       {scripts.map((src) => (
-        <Script key={src} src={src} strategy="afterInteractive" />
+        <Script
+          key={src}
+          src={src}
+          strategy={src === '/script.js' ? 'beforeInteractive' : 'afterInteractive'}
+        />
       ))}
     </>
   );

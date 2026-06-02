@@ -1,7 +1,8 @@
 import LegacyPage from '../components/LegacyPage';
 import { PAGE_CONTENT } from '../lib/page-content';
+import { readProducts } from '../lib/products-store';
 
-export default function HomePage() {
+export default function HomePage({ initialProducts = [] }) {
   const page = PAGE_CONTENT.index;
 
   return (
@@ -10,6 +11,11 @@ export default function HomePage() {
       description={page.description}
       bodyHtml={page.bodyHtml}
       scripts={['/tracking.js', '/script.js', '/main.js']}
+      initialProducts={initialProducts}
     />
   );
+}
+
+export async function getServerSideProps() {
+  return { props: { initialProducts: await readProducts() } };
 }

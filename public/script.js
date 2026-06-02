@@ -17,7 +17,6 @@ const storageKeys = {
 };
 
 const legacyStorageKeys = {
-  products: ['velora-store-v3-products', 'velora-store-v2-products'],
   cart: ['velora-store-v3-cart', 'velora-store-v2-cart'],
   wishlist: ['velora-store-v3-wishlist', 'velora-store-v2-wishlist'],
   orders: ['velora-store-v3-orders', 'velora-store-v2-orders'],
@@ -31,228 +30,96 @@ const adminCredentials = {
   password: '172005',
 };
 
-
-
-const defaultProducts = [
-  {
-    id: 'PRD-101',
-    name: 'حلقان الوردة الهادية',
-    category: 'حلقان',
-    price: 320,
-    stock: 18,
-    badge: 'جديد',
-    status: 'متوفر الآن',
-    discount: 14,
-    compareAtPrice: 372,
-    rating: 4.9,
-    reviewCount: 126,
-    note: 'لمسة ناعمة',
-    details: 'قطعة هادئة ومرتبة للاستخدام اليومي.',
-    image: 'assets/products/earrings-01.svg',
-    hoverImage: 'assets/products/earrings-01-hover.svg',
-    gallery: ['assets/products/earrings-01.svg', 'assets/products/earrings-01-hover.svg', 'assets/products/earrings-01.svg'],
-    colors: ['وردي', 'ذهبي', 'فضي'],
-    sizes: ['مقاس واحد'],
-    tone: 0,
-    monogram: 'ح',
-  },
-  {
-    id: 'PRD-102',
-    name: 'سلسلة الحروف الوردية',
-    category: 'سلاسل',
-    price: 280,
-    stock: 14,
-    badge: 'مميز',
-    status: 'متوفر الآن',
-    discount: 10,
-    compareAtPrice: 311,
-    rating: 4.8,
-    reviewCount: 98,
-    note: 'لمعة هادئة',
-    details: 'سلسلة أنيقة بتفاصيل واضحة.',
-    image: 'assets/products/necklace-01.svg',
-    hoverImage: 'assets/products/necklace-01-hover.svg',
-    gallery: ['assets/products/necklace-01.svg', 'assets/products/necklace-01-hover.svg', 'assets/products/necklace-01.svg'],
-    colors: ['وردي', 'ذهبي'],
-    sizes: ['38 سم', '42 سم', '46 سم'],
-    tone: 1,
-    monogram: 'س',
-  },
-  {
-    id: 'PRD-103',
-    name: 'انسيال بريق ناعم',
-    category: 'انسيالات',
-    price: 240,
-    stock: 11,
-    badge: 'اختيار مميز',
-    status: 'متوفر الآن',
-    discount: 12,
-    compareAtPrice: 273,
-    rating: 4.8,
-    reviewCount: 84,
-    note: 'قطعة مريحة',
-    details: 'إنسيال خفيف ومرتب.',
-    image: 'assets/products/bracelet-01.svg',
-    hoverImage: 'assets/products/bracelet-01-hover.svg',
-    gallery: ['assets/products/bracelet-01.svg', 'assets/products/bracelet-01-hover.svg', 'assets/products/bracelet-01.svg'],
-    colors: ['وردي', 'ذهبي', 'لؤلؤي'],
-    sizes: ['S', 'M', 'L'],
-    tone: 2,
-    monogram: 'ا',
-  },
-  {
-    id: 'PRD-104',
-    name: 'خاتم سحابة لؤلؤية',
-    category: 'خواتم',
-    price: 210,
-    stock: 7,
-    badge: 'جديد',
-    status: 'إصدار محدود',
-    discount: 8,
-    compareAtPrice: 228,
-    rating: 4.7,
-    reviewCount: 61,
-    note: 'شكل هادئ',
-    details: 'خاتم بلمسة لؤلؤية ورقيقة.',
-    image: 'assets/products/ring-01.svg',
-    hoverImage: 'assets/products/ring-01-hover.svg',
-    gallery: ['assets/products/ring-01.svg', 'assets/products/ring-01-hover.svg', 'assets/products/ring-01.svg'],
-    colors: ['لؤلؤي', 'وردي'],
-    sizes: ['16', '17', '18'],
-    tone: 3,
-    monogram: 'خ',
-  },
-  {
-    id: 'PRD-105',
-    name: 'حلقان فيلورا الهادئ',
-    category: 'حلقان',
-    price: 360,
-    stock: 9,
-    badge: 'مميز',
-    status: 'متوفر الآن',
-    discount: 15,
-    compareAtPrice: 424,
-    rating: 4.9,
-    reviewCount: 144,
-    note: 'مناسب للهدية',
-    details: 'حلقان أنيقة بتفاصيل هادئة.',
-    image: 'assets/products/earrings-01.svg',
-    hoverImage: 'assets/products/earrings-01-hover.svg',
-    gallery: ['assets/products/earrings-01.svg', 'assets/products/earrings-01-hover.svg', 'assets/products/earrings-01.svg'],
-    colors: ['وردي', 'ذهبي', 'فضي'],
-    sizes: ['مقاس واحد'],
-    tone: 0,
-    monogram: 'ف',
-  },
-  {
-    id: 'PRD-106',
-    name: 'انسيال اللمسة الوردية',
-    category: 'انسيالات',
-    price: 190,
-    stock: 16,
-    badge: 'خفيف',
-    status: 'متوفر الآن',
-    discount: 18,
-    compareAtPrice: 232,
-    rating: 4.8,
-    reviewCount: 77,
-    note: 'سهل التنسيق',
-    details: 'انسيال خفيف ومرتب.',
-    image: 'assets/products/bracelet-01.svg',
-    hoverImage: 'assets/products/bracelet-01-hover.svg',
-    gallery: ['assets/products/bracelet-01.svg', 'assets/products/bracelet-01-hover.svg', 'assets/products/bracelet-01.svg'],
-    colors: ['وردي', 'فضي'],
-    sizes: ['S', 'M', 'L'],
-    tone: 1,
-    monogram: 'ل',
-  },
-  {
-    id: 'PRD-107',
-    name: 'كفر اللمسة الوردية',
-    category: 'كفرات',
-    price: 260,
-    stock: 15,
-    badge: 'جديد',
-    status: 'متوفر الآن',
-    discount: 12,
-    compareAtPrice: 295,
-    rating: 4.8,
-    reviewCount: 52,
-    note: 'كفر أنيق',
-    details: 'كفر بتفاصيل ناعمة.',
-    image: 'assets/products/case-01.svg',
-    hoverImage: 'assets/products/case-01-hover.svg',
-    gallery: ['assets/products/case-01.svg', 'assets/products/case-01-hover.svg', 'assets/products/case-01.svg'],
-    colors: ['وردي', 'ذهبي'],
-    sizes: ['iPhone 14', 'iPhone 15'],
-    tone: 2,
-    monogram: 'ك',
-  },
-  {
-    id: 'PRD-108',
-    name: 'اسورة فيلورا الناعمة',
-    category: 'اساور',
-    price: 290,
-    stock: 13,
-    badge: 'مميز',
-    status: 'متوفر الآن',
-    discount: 9,
-    compareAtPrice: 319,
-    rating: 4.8,
-    reviewCount: 67,
-    note: 'اسورة عملية',
-    details: 'اسورة بمظهر مرتب.',
-    image: 'assets/products/bracelet-01.svg',
-    hoverImage: 'assets/products/bracelet-01-hover.svg',
-    gallery: ['assets/products/bracelet-01.svg', 'assets/products/bracelet-01-hover.svg', 'assets/products/bracelet-01.svg'],
-    colors: ['وردي', 'بيج'],
-    sizes: ['مقاس واحد'],
-    tone: 3,
-    monogram: 'م',
-  },
-];
-
-
+const defaultProducts = [];
 const defaultOrders = [];
 
-const egyptGovernorates = [
-  'القاهرة',
-  'الجيزة',
-  'الإسكندرية',
-  'الدقهلية',
-  'الشرقية',
-  'الغربية',
-  'المنوفية',
-  'القليوبية',
-  'البحيرة',
-  'كفر الشيخ',
-  'دمياط',
-  'بورسعيد',
-  'الإسماعيلية',
-  'السويس',
-  'شمال سيناء',
-  'جنوب سيناء',
-  'بني سويف',
-  'الفيوم',
-  'المنيا',
-  'أسيوط',
-  'سوهاج',
-  'قنا',
-  'الأقصر',
-  'أسوان',
-  'البحر الأحمر',
-  'الوادي الجديد',
-  'مطروح',
-];
+const governorateAreas = {
+  القاهرة: ['مدينة نصر', 'مصر الجديدة', 'النزهة', 'عين شمس', 'المطرية', 'السلام أول', 'السلام ثان', 'المرج', 'شبرا', 'روض الفرج', 'الساحل', 'الزاوية الحمراء', 'حدائق القبة', 'الوايلي', 'الزيتون', 'الشرابية', 'وسط القاهرة', 'باب الشعرية', 'الأزبكية', 'بولاق', 'عابدين', 'الموسكي', 'غرب القاهرة', 'قصر النيل', 'الزمالك', 'الدرب الأحمر', 'الجمالية', 'الخليفة', 'المقطم', 'منشأة ناصر', 'السيدة زينب', 'مصر القديمة', 'دار السلام', 'البساتين', 'المعادي', 'طرة', 'حلوان', 'المعصرة', '15 مايو', 'التبين', 'القاهرة الجديدة', 'الشروق', 'بدر'],
+  الجيزة: ['الجيزة', 'الدقي', 'العجوزة', 'الهرم', 'فيصل', 'بولاق الدكرور', 'العمرانية', 'الطالبية', 'إمبابة', 'الوراق', 'أوسيم', 'كرداسة', 'منشأة القناطر', 'أبو النمرس', 'الحوامدية', 'البدرشين', 'العياط', 'الصف', 'أطفيح', 'الواحات البحرية', '6 أكتوبر', 'الشيخ زايد', 'حدائق أكتوبر'],
+  الإسكندرية: ['المنتزه أول', 'المنتزه ثان', 'شرق', 'وسط', 'غرب', 'الجمرك', 'العجمي', 'العامرية أول', 'العامرية ثان', 'برج العرب'],
+  الدقهلية: ['المنصورة', 'طلخا', 'ميت غمر', 'دكرنس', 'أجا', 'السنبلاوين', 'المنزلة', 'بلقاس', 'شربين', 'منية النصر', 'تمي الأمديد', 'الجمالية', 'محلة دمنة', 'بني عبيد', 'نبروه', 'ميت سلسيل', 'الكردي', 'المطرية', 'جمصة'],
+  الشرقية: ['الزقازيق', 'بلبيس', 'منيا القمح', 'أبو حماد', 'أبو كبير', 'فاقوس', 'الحسينية', 'كفر صقر', 'أولاد صقر', 'ههيا', 'الإبراهيمية', 'ديرب نجم', 'مشتول السوق', 'القنايات', 'صان الحجر', 'منشأة أبو عمر', 'العاشر من رمضان'],
+  الغربية: ['طنطا', 'المحلة الكبرى', 'كفر الزيات', 'زفتى', 'السنطة', 'قطور', 'بسيون', 'سمنود'],
+  المنوفية: ['شبين الكوم', 'منوف', 'أشمون', 'قويسنا', 'تلا', 'الباجور', 'بركة السبع', 'الشهداء', 'السادات', 'سرس الليان'],
+  القليوبية: ['بنها', 'قليوب', 'القناطر الخيرية', 'الخانكة', 'كفر شكر', 'طوخ', 'شبين القناطر', 'شبرا الخيمة', 'العبور', 'الخصوص', 'قها'],
+  البحيرة: ['دمنهور', 'كفر الدوار', 'رشيد', 'إدكو', 'أبو المطامير', 'أبو حمص', 'الدلنجات', 'المحمودية', 'الرحمانية', 'إيتاي البارود', 'حوش عيسى', 'شبراخيت', 'كوم حمادة', 'بدر', 'وادي النطرون', 'النوبارية'],
+  'كفر الشيخ': ['كفر الشيخ', 'دسوق', 'فوه', 'مطوبس', 'قلين', 'سيدي سالم', 'الرياض', 'بيلا', 'الحامول', 'بلطيم', 'برج البرلس'],
+  دمياط: ['دمياط', 'فارسكور', 'كفر سعد', 'الزرقا', 'كفر البطيخ', 'رأس البر', 'دمياط الجديدة'],
+  بورسعيد: ['بورفؤاد', 'الشرق', 'العرب', 'المناخ', 'الضواحي', 'الزهور', 'الجنوب', 'غرب بورسعيد'],
+  الإسماعيلية: ['الإسماعيلية', 'فايد', 'القنطرة شرق', 'القنطرة غرب', 'التل الكبير', 'أبو صوير', 'القصاصين'],
+  السويس: ['السويس', 'الأربعين', 'عتاقة', 'الجناين', 'فيصل'],
+  'شمال سيناء': ['العريش', 'الشيخ زويد', 'رفح', 'بئر العبد', 'الحسنة', 'نخل'],
+  'جنوب سيناء': ['طور سيناء', 'شرم الشيخ', 'دهب', 'نويبع', 'طابا', 'سانت كاترين', 'رأس سدر', 'أبو رديس', 'أبو زنيمة'],
+  'بني سويف': ['بني سويف', 'الواسطى', 'ناصر', 'إهناسيا', 'ببا', 'سمسطا', 'الفشن'],
+  الفيوم: ['الفيوم', 'سنورس', 'إطسا', 'طامية', 'أبشواي', 'يوسف الصديق'],
+  المنيا: ['المنيا', 'العدوة', 'مغاغة', 'بني مزار', 'مطاي', 'سمالوط', 'أبو قرقاص', 'ملوي', 'دير مواس', 'المنيا الجديدة'],
+  أسيوط: ['أسيوط', 'ديروط', 'القوصية', 'منفلوط', 'أبنوب', 'أبو تيج', 'الغنايم', 'ساحل سليم', 'البداري', 'صدفا', 'الفتح', 'أسيوط الجديدة'],
+  سوهاج: ['سوهاج', 'أخميم', 'البلينا', 'المراغة', 'المنشأة', 'دار السلام', 'جرجا', 'جهينة', 'ساقلتة', 'طما', 'طهطا', 'العسيرات'],
+  قنا: ['قنا', 'أبو تشت', 'فرشوط', 'نجع حمادي', 'دشنا', 'الوقف', 'قفط', 'قوص', 'نقادة'],
+  الأقصر: ['الأقصر', 'الزينية', 'البياضية', 'القرنة', 'أرمنت', 'إسنا', 'الطود'],
+  أسوان: ['أسوان', 'دراو', 'كوم أمبو', 'نصر النوبة', 'إدفو', 'أبو سمبل', 'أسوان الجديدة'],
+  'البحر الأحمر': ['الغردقة', 'رأس غارب', 'سفاجا', 'القصير', 'مرسى علم', 'الشلاتين', 'حلايب'],
+  'الوادي الجديد': ['الخارجة', 'الداخلة', 'الفرافرة', 'باريس', 'بلاط'],
+  مطروح: ['مرسى مطروح', 'الحمام', 'العلمين', 'الضبعة', 'النجيلة', 'سيدي براني', 'السلوم', 'سيوة'],
+};
+
+const shippingFees = {};
+const egyptGovernorates = Object.keys(governorateAreas);
 
 window.veloraStore = {
-  products: defaultProducts,
+  products: Array.isArray(window.veloraInitialProducts) && window.veloraInitialProducts.length
+    ? window.veloraInitialProducts
+    : defaultProducts,
   orders: defaultOrders,
   storageKeys,
   legacyStorageKeys,
   adminCredentials,
   governorates: egyptGovernorates,
+  governorateAreas,
+  shippingFees,
   paymentMethods: ['عند الاستلام', 'فودافون كاش', 'إنستاباي'],
+  tonePalette,
 };
 
- 
+function populateVeloraAreaSelect(governorateSelect, areaSelect) {
+  if (!governorateSelect || !areaSelect || governorateSelect.dataset.veloraFallbackReady === 'true') {
+    return;
+  }
+
+  governorateSelect.innerHTML = [
+    '<option value="">اختر المحافظة</option>',
+    ...egyptGovernorates.map((governorate) => `<option value="${governorate}">${governorate}</option>`),
+  ].join('');
+
+  const updateAreas = () => {
+    const areas = governorateAreas[governorateSelect.value] || [];
+    areaSelect.innerHTML = [
+      '<option value="">اختر المنطقة / المركز</option>',
+      ...areas.map((area) => `<option value="${area}">${area}</option>`),
+    ].join('');
+  };
+
+  governorateSelect.addEventListener('change', updateAreas);
+  governorateSelect.dataset.veloraFallbackReady = 'true';
+  updateAreas();
+}
+
+function ensureVeloraGovernorates() {
+  populateVeloraAreaSelect(
+    document.getElementById('customerGovernorate'),
+    document.getElementById('customerArea'),
+  );
+  populateVeloraAreaSelect(
+    document.getElementById('returnGovernorate'),
+    document.getElementById('returnArea'),
+  );
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', ensureVeloraGovernorates);
+} else {
+  ensureVeloraGovernorates();
+}
+
+window.setTimeout(ensureVeloraGovernorates, 500);
+window.setTimeout(ensureVeloraGovernorates, 1500);

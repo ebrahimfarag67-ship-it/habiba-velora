@@ -28,37 +28,11 @@
 
   const governorates = Array.isArray(store.governorates) && store.governorates.length
     ? store.governorates
-    : [
-        'القاهرة',
-        'الجيزة',
-        'الإسكندرية',
-        'الدقهلية',
-        'الشرقية',
-        'الغربية',
-        'المنوفية',
-        'القليوبية',
-        'البحيرة',
-        'كفر الشيخ',
-        'دمياط',
-        'بورسعيد',
-        'الإسماعيلية',
-        'السويس',
-        'شمال سيناء',
-        'جنوب سيناء',
-        'بني سويف',
-        'الفيوم',
-        'المنيا',
-        'أسيوط',
-        'سوهاج',
-        'قنا',
-        'الأقصر',
-        'أسوان',
-        'البحر الأحمر',
-        'الوادي الجديد',
-        'مطروح',
-      ];
+    : [];
 
-  const moneyFormatter = new Intl.NumberFormat('ar-EG-u-nu-arab');
+  const governorateAreas = store.governorateAreas || {};
+
+  const moneyFormatter = new Intl.NumberFormat('ar-EG-u-nu-latn');
   const dateFormatter = new Intl.DateTimeFormat('ar-EG', {
     dateStyle: 'long',
     timeStyle: 'short',
@@ -420,7 +394,7 @@
 
         ${latestRequest ? `
           <div class="return-footnote">
-            آخر طلب محفوظ: ${escapeHtml(latestRequest.id)} — ${escapeHtml(latestRequest.customer)} — ${escapeHtml(formatDateTime(latestRequest.createdAt))}
+            آخر طلب محفوظ: ${escapeHtml(latestRequest.id)} - ${escapeHtml(latestRequest.customer)} - ${escapeHtml(formatDateTime(latestRequest.createdAt))}
           </div>
         ` : ''}
       </article>
@@ -506,6 +480,9 @@
   });
 
   form.addEventListener('submit', handleSubmit);
+  governorateSelect?.addEventListener('change', (event) => {
+    renderAreas(event.target.value);
+  });
   resetButton?.addEventListener('click', resetForm);
 
   [customerNameInput, customerPhoneInput, orderIdInput, governorateSelect, areaInput, addressInput, returnTypeSelect, returnReasonSelect, returnNotesInput]
