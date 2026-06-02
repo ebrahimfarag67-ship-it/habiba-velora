@@ -36,7 +36,7 @@
 
     mount.innerHTML = `
       <article class="invoice-print-card">
-        <img class="invoice-brand-banner" src="/assets/habiba-velora-invoice-banner.png" alt="Habiba Velora" />
+        <img class="invoice-brand-banner" src="/assets/habiba-velora-invoice-banner.jpg" alt="Habiba Velora" />
 
         <div class="invoice-print-head">
           <div>
