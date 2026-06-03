@@ -4911,9 +4911,9 @@ body[data-theme="dark"] .requested-card .action-btn:focus-visible {
   }
 
   .hero-overlay {
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: 16px 12px 0;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 12px 22px;
   }
 
   .hero-overlay-card {
@@ -4968,7 +4968,7 @@ body[data-theme="dark"] .requested-card .action-btn:focus-visible {
   .hero-overlay-actions {
     width: auto;
     gap: 0;
-    margin-inline-start: auto;
+    margin-inline-start: 0;
   }
 
   .hero-overlay-actions > * {
