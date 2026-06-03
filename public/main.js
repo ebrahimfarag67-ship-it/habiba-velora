@@ -259,15 +259,62 @@
   }
 
   function formatMoney(value) {
-    return `${moneyFormatter.format(Math.max(0, Math.round(toNumber(value))))} ج.م`;
+    return `${moneyFormatter.format(Math.max(0, Math.round(toNumber(value))))} \u062c.\u0645`;
   }
 
   function formatProductCardPrice(product) {
     const options = normalizePriceOptions(product?.priceOptions);
     if (options.length) {
-      return options.map((option) => `${option.label}: ${formatMoney(option.price)}`).join('\n');
+      return options
+        .slice(0, 3)
+        .map((option) => `${option.label}: ${formatMoney(option.price)}`)
+        .join('\n');
     }
     return formatMoney(product?.price || 0);
+  }
+
+  function buildProductCardOptions(product) {
+    const options = normalizePriceOptions(product?.priceOptions);
+    if (!options.length) {
+      return '';
+    }
+
+    if (options.length === 1) {
+      const option = options[0];
+      return `
+        <div class="product-card-options single">
+          <span>\u0627\u0644\u0627\u062e\u062a\u064a\u0627\u0631 \u0627\u0644\u0645\u062a\u0627\u062d</span>
+          <strong>${escapeHtml(option.label)} - ${escapeHtml(formatMoney(option.price))}</strong>
+        </div>
+      `;
+    }
+
+    return `
+      <label class="product-card-options">
+        <span>\u0627\u062e\u062a\u0627\u0631\u064a \u0627\u0644\u0646\u0648\u0639</span>
+        <select data-action="card-price-option" aria-label="\u0627\u062e\u062a\u064a\u0627\u0631 \u0646\u0648\u0639 \u0627\u0644\u0645\u0646\u062a\u062c">
+          ${options.map((option, index) => `
+            <option value="${index}">${escapeHtml(option.label)} - ${escapeHtml(formatMoney(option.price))}</option>
+          `).join('')}
+        </select>
+      </label>
+    `;
+  }
+
+  function getCardSelectedVariant(product, card) {
+    const defaultVariant = getDefaultVariant(product);
+    const options = normalizePriceOptions(product?.priceOptions);
+    if (!options.length) {
+      return defaultVariant;
+    }
+
+    const selectedIndex = Math.max(0, toNumber(card?.querySelector('[data-action="card-price-option"]')?.value, 0));
+    const selectedOption = options[selectedIndex] || options[0];
+    return {
+      ...defaultVariant,
+      option: selectedOption.label,
+      price: selectedOption.price,
+    };
   }
 
   function formatCount(value) {
@@ -1097,6 +1144,12 @@
         <span>\u0627\u0644\u062d\u0627\u0644\u0629: ${escapeHtml(statusMeta[order.status]?.label || '\u0642\u064a\u062f \u0627\u0644\u062a\u062c\u0647\u064a\u0632')}</span>
         <strong>${escapeHtml(formatMoney(order.total))}</strong>
       </div>
+      <div class="order-success-steps" aria-label="خطوات متابعة الطلب">
+        <span class="active">استلام الطلب</span>
+        <span>تجهيز الطلب</span>
+        <span>خروج للشحن</span>
+        <span>تم التسليم</span>
+      </div>
       <div class="order-success-actions">
         <a class="primary-btn" href="${escapeHtml(orderTrackingUrl(order))}">\u0645\u062a\u0627\u0628\u0639\u0629 \u0627\u0644\u0637\u0644\u0628</a>
         <a class="secondary-btn" href="/#collection">\u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0644\u0645\u062a\u062c\u0631</a>
@@ -1850,11 +1903,44 @@
     }
 
     const fragment = document.createDocumentFragment();
+    const smartProducts = rotateProductsForCategory(
+      state.products.filter((product) => product.stock !== 0),
+      `smart-${Math.floor(Date.now() / 30000)}`,
+      Math.min(4, Math.max(2, state.products.length))
+    );
+
+    if (smartProducts.length) {
+      const smartSection = document.createElement('section');
+      smartSection.className = 'category-products-section smart-products-section';
+      smartSection.dataset.categorySection = 'smart-picks';
+      smartSection.style.setProperty('--section-index', 0);
+      smartSection.innerHTML = `
+        <div class="category-products-head">
+          <div>
+            <p class="eyebrow">اختيارات اليوم</p>
+            <h3>ترشيحات متجددة</h3>
+            <span>منتجات مختلفة تظهر للعميل مع كل زيارة بدون التأثير على منتجات لوحة التحكم.</span>
+          </div>
+          <button type="button" class="secondary-btn category-view-all" data-action="view-category" data-category="all">
+            عرض كل المنتجات
+            <small>${escapeHtml(formatCount(state.products.length))} منتج</small>
+          </button>
+        </div>
+        <div class="category-products-grid smart-products-grid"></div>
+      `;
+
+      const smartGrid = smartSection.querySelector('.smart-products-grid');
+      smartProducts.forEach((product, productIndex) => {
+        smartGrid.appendChild(buildProductCard(product, productIndex));
+      });
+      fragment.appendChild(smartSection);
+    }
+
     categories.forEach((category, categoryIndex) => {
       const section = document.createElement('section');
       section.className = 'category-products-section';
       section.dataset.categorySection = category.value;
-      section.style.setProperty('--section-index', categoryIndex);
+      section.style.setProperty('--section-index', categoryIndex + 1);
       section.innerHTML = `
         <div class="category-products-head">
           <div>
@@ -1872,7 +1958,7 @@
 
       const grid = section.querySelector('.category-products-grid');
       rotateProductsForCategory(category.products, category.value, 2).forEach((product, productIndex) => {
-        grid.appendChild(buildProductCard(product, (categoryIndex * 2) + productIndex));
+        grid.appendChild(buildProductCard(product, ((categoryIndex + 1) * 2) + productIndex));
       });
       fragment.appendChild(section);
     });
@@ -1936,6 +2022,7 @@
           ${oldPrice ? `<del class="product-old-price">${escapeHtml(oldPrice)}</del>` : ''}
           ${!priceOptions.length && discount ? `<span class="discount-pill">خصم ${escapeHtml(formatCount(discount))}%</span>` : ''}
         </div>
+        ${buildProductCardOptions(product)}
         <div class="product-actions">
           <button type="button" class="primary-btn" data-action="add-to-cart">أضف للسلة</button>
           <button type="button" class="secondary-btn" data-action="quick-view">معاينة سريعة</button>
@@ -2950,8 +3037,9 @@
 
     if (action === 'add-to-cart') {
       event.preventDefault();
-      addToCart(product, 1, getDefaultVariant(product), {
+      addToCart(product, 1, getCardSelectedVariant(product, card), {
         sourceElement: card,
+        openProductPage: false,
       });
       return;
     }

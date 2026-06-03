@@ -1828,6 +1828,7 @@ body[data-page="home"] .hero-overlay .secondary-btn {
   flex: 1 1 0;
 }
 
+
 .product-skeleton {
   pointer-events: none;
 }
@@ -2314,6 +2315,7 @@ body[data-theme="dark"] .quick-view-close {
   min-width: 180px;
   justify-content: center;
 }
+
 
 .summary-line {
   display: flex;
@@ -3807,6 +3809,163 @@ body[data-page="admin"] .page-shell {
   margin: 0;
   color: var(--text-soft);
   text-align: center;
+}
+
+.product-card-options {
+  display: grid;
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid rgba(187, 136, 80, 0.15);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(250, 236, 232, 0.42));
+}
+
+.product-card-options span {
+  color: var(--text-soft);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.product-card-options strong {
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+
+.product-card-options select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(187, 136, 80, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  outline: none;
+}
+
+.product-card-options select:focus {
+  border-color: rgba(187, 136, 80, 0.48);
+  box-shadow: 0 0 0 4px rgba(231, 178, 119, 0.15);
+}
+
+.smart-products-section {
+  border-color: rgba(187, 136, 80, 0.28);
+  background:
+    radial-gradient(circle at 12% 12%, rgba(231, 178, 119, 0.24), transparent 32%),
+    radial-gradient(circle at 88% 24%, rgba(174, 118, 133, 0.13), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(250, 236, 232, 0.58));
+}
+
+.order-success-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  width: min(100%, 680px);
+}
+
+.order-success-steps span {
+  display: grid;
+  place-items: center;
+  min-height: 42px;
+  padding: 8px;
+  border: 1px solid rgba(133, 170, 123, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.64);
+  color: var(--text-soft);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.order-success-steps span.active {
+  background: linear-gradient(180deg, #d8efca, #8fb47e);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(109, 143, 96, 0.2);
+}
+
+.product-page-main {
+  min-height: clamp(340px, 52vw, 560px);
+}
+
+.product-page-thumbnails button {
+  box-shadow: 0 10px 22px rgba(114, 79, 44, 0.08);
+}
+
+.variant-chip,
+.model-chip {
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.variant-chip:hover,
+.model-chip:hover,
+.variant-chip.active,
+.model-chip.active {
+  transform: translateY(-2px);
+}
+
+body[data-theme="dark"] .product-card-options {
+  border-color: rgba(231, 178, 119, 0.2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(231, 178, 119, 0.06));
+}
+
+body[data-theme="dark"] .product-card-options strong,
+body[data-theme="dark"] .product-card-options select {
+  color: var(--text);
+}
+
+body[data-theme="dark"] .product-card-options select {
+  border-color: rgba(231, 178, 119, 0.22);
+  background: rgba(22, 18, 28, 0.92);
+}
+
+body[data-theme="dark"] .smart-products-section {
+  border-color: rgba(231, 178, 119, 0.2);
+  background:
+    radial-gradient(circle at 12% 12%, rgba(231, 178, 119, 0.12), transparent 34%),
+    radial-gradient(circle at 88% 24%, rgba(238, 181, 193, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(34, 27, 41, 0.9), rgba(22, 18, 28, 0.78));
+}
+
+body[data-theme="dark"] .order-success-steps span {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(246, 233, 228, 0.78);
+}
+
+body[data-theme="dark"] .order-success-steps span.active {
+  background: linear-gradient(180deg, rgba(216, 239, 202, 0.9), rgba(127, 168, 109, 0.88));
+  color: #10130f;
+}
+
+@media (max-width: 640px) {
+  .product-card-options {
+    padding: 7px;
+    border-radius: 14px;
+  }
+
+  .product-card-options select {
+    min-height: 34px;
+    font-size: 0.72rem;
+  }
+
+  .product-actions {
+    gap: 7px;
+  }
+
+  .order-success-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .order-success-steps span {
+    min-height: 38px;
+    font-size: 0.7rem;
+  }
+
+  .smart-products-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media print {
