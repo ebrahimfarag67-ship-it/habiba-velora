@@ -1915,7 +1915,7 @@
     const smartProducts = rotateProductsForCategory(
       state.products.filter((product) => product.stock !== 0),
       `smart-${Math.floor(Date.now() / 30000)}`,
-      Math.min(4, Math.max(2, state.products.length))
+      Math.min(2, state.products.length)
     );
 
     if (smartProducts.length) {
@@ -1926,13 +1926,13 @@
       smartSection.innerHTML = `
         <div class="category-products-head">
           <div>
-            <p class="eyebrow">اختيارات اليوم</p>
-            <h3>ترشيحات متجددة</h3>
-            <span>منتجات مختلفة تظهر للعميل مع كل زيارة بدون التأثير على منتجات لوحة التحكم.</span>
+            <p class="eyebrow">\u0627\u062e\u062a\u064a\u0627\u0631\u0627\u062a \u0627\u0644\u064a\u0648\u0645</p>
+            <h3>\u062a\u0631\u0634\u064a\u062d\u0627\u062a \u0645\u062a\u062c\u062f\u062f\u0629</h3>
+            <span>\u0645\u0646\u062a\u062c\u064a\u0646 \u0645\u062e\u062a\u0627\u0631\u064a\u0646 \u0645\u0646 \u0643\u0644 \u0632\u064a\u0627\u0631\u0629 \u0644\u0648\u0627\u062c\u0647\u0629 \u0623\u0647\u062f\u0623 \u0648\u0623\u0633\u0631\u0639.</span>
           </div>
           <button type="button" class="secondary-btn category-view-all" data-action="view-category" data-category="all">
-            عرض كل المنتجات
-            <small>${escapeHtml(formatCount(state.products.length))} منتج</small>
+            \u0639\u0631\u0636 \u0643\u0644 \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a
+            <small>${escapeHtml(formatCount(state.products.length))} \u0645\u0646\u062a\u062c</small>
           </button>
         </div>
         <div class="category-products-grid smart-products-grid"></div>
