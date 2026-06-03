@@ -446,24 +446,14 @@ body[data-page="home"] .topbar {
   right: 24px;
   z-index: 40;
   margin: 0;
-  border-color: rgba(255, 255, 255, 0.46);
-  background:
-    linear-gradient(105deg, rgba(82, 54, 42, 0.14) 0 30%, rgba(255, 255, 255, 0.58) 30% 100%);
-  box-shadow: 0 12px 34px rgba(79, 47, 35, 0.1);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 body[data-page="home"] .topbar::before {
-  content: "";
-  position: absolute;
-  inset: -1px auto -1px -1px;
-  width: min(34vw, 430px);
-  border-radius: 28px 0 0 28px;
-  background:
-    radial-gradient(circle at 30% 42%, rgba(255, 255, 255, 0.2), transparent 34%),
-    linear-gradient(135deg, rgba(201, 133, 151, 0.18), rgba(187, 136, 80, 0.16));
-  clip-path: ellipse(82% 120% at 0% 50%);
-  pointer-events: none;
-  z-index: -1;
+  display: none;
 }
 
 body[data-page="home"] .hero-showcase {
@@ -480,6 +470,32 @@ body[data-page="home"] .hero-showcase::after {
     radial-gradient(circle at 88% 35%, rgba(255, 255, 255, 0.14), transparent 24%);
   pointer-events: none;
   z-index: 1;
+}
+
+body[data-page="home"] .topnav a,
+body[data-page="home"] .top-actions > *,
+body[data-page="home"] .brand-mark {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 24px rgba(51, 31, 22, 0.1);
+}
+
+body[data-page="home"] .brand-block {
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 24px rgba(51, 31, 22, 0.08);
+}
+
+body[data-page="home"] .brand-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 18px;
+}
+
+body[data-page="home"] .brand-copy small {
+  letter-spacing: 0;
 }
 
 .hero-showcase::before {
@@ -4472,16 +4488,23 @@ body[data-theme="dark"] .hero-overlay-card {
 }
 
 body[data-theme="dark"][data-page="home"] .topbar {
-  background:
-    linear-gradient(105deg, rgba(12, 10, 14, 0.74) 0 30%, rgba(28, 23, 34, 0.72) 30% 100%) !important;
-  border-color: rgba(240, 201, 140, 0.18) !important;
-  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.32);
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 body[data-theme="dark"][data-page="home"] .topbar::before {
-  background:
-    radial-gradient(circle at 30% 42%, rgba(240, 201, 140, 0.14), transparent 34%),
-    linear-gradient(135deg, rgba(201, 133, 151, 0.12), rgba(240, 201, 140, 0.12));
+  display: none;
+}
+
+body[data-theme="dark"][data-page="home"] .topnav a,
+body[data-theme="dark"][data-page="home"] .top-actions > *,
+body[data-theme="dark"][data-page="home"] .brand-block,
+body[data-theme="dark"][data-page="home"] .brand-mark {
+  background: rgba(24, 20, 30, 0.58) !important;
+  border-color: rgba(240, 201, 140, 0.16) !important;
+  color: #fff7f2 !important;
 }
 
 body[data-theme="dark"][data-page="home"] .hero-showcase {
