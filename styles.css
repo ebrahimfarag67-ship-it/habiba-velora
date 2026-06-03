@@ -5430,6 +5430,47 @@ body[data-theme="dark"] .requested-card .action-btn:focus-visible {
     justify-content: flex-start;
   }
 
+  .compact-footer {
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 22px;
+  }
+
+  .footer-brand-mini {
+    gap: 10px;
+  }
+
+  .footer-brand-mini img {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  .compact-footer strong {
+    margin-bottom: 2px;
+    font-size: 1rem;
+  }
+
+  .compact-footer p {
+    font-size: 0.72rem;
+    line-height: 1.7;
+  }
+
+  .compact-footer nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    gap: 7px;
+  }
+
+  .compact-footer a {
+    justify-content: center;
+    min-height: 36px;
+    padding: 0 8px;
+    font-size: 0.72rem;
+  }
+
   .invoice-toolbar {
     grid-template-columns: 1fr;
   }
@@ -5728,6 +5769,61 @@ body[data-theme="dark"] .requested-card .action-btn:focus-visible {
   text-decoration: none;
   font-weight: 700;
   font-size: 0.82rem;
+}
+
+.compact-footer {
+  align-items: center;
+  padding: clamp(14px, 2vw, 18px);
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(250, 236, 232, 0.5)),
+    radial-gradient(circle at 10% 10%, rgba(231, 178, 119, 0.16), transparent 34%);
+}
+
+.footer-brand-mini {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.footer-brand-mini img {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 12px 24px rgba(114, 79, 44, 0.1);
+}
+
+.compact-footer p {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 0.8rem;
+}
+
+.compact-footer nav {
+  gap: 7px;
+}
+
+.compact-footer a {
+  min-height: 38px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+}
+
+body[data-theme="dark"] .compact-footer {
+  border-color: rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(135deg, rgba(34, 27, 41, 0.86), rgba(22, 18, 28, 0.72)),
+    radial-gradient(circle at 10% 10%, rgba(231, 178, 119, 0.08), transparent 34%);
+}
+
+body[data-theme="dark"] .footer-brand-mini img,
+body[data-theme="dark"] .compact-footer a {
+  background: rgba(255, 255, 255, 0.08);
 }
 
   .discount-pill,
