@@ -150,14 +150,23 @@
     return Number.isFinite(number) ? number : 0;
   }
 
+  function normalizeOptionLabel(value) {
+    const arabicDigits = ['\u0660', '\u0661', '\u0662', '\u0663', '\u0664', '\u0665', '\u0666', '\u0667', '\u0668', '\u0669'];
+    return normalizeText(value)
+      .replace(/[0-9]/g, (digit) => arabicDigits[Number(digit)] || digit)
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   function normalizePriceOptions(value) {
     const source = Array.isArray(value) ? value : [];
     return source
       .map((option) => ({
-        label: normalizeText(option?.label || option?.name || ''),
+        label: normalizeOptionLabel(option?.label || option?.name || ''),
         price: Math.max(0, parseLocalizedNumber(option?.price)),
       }))
-      .filter((option) => option.label && option.price > 0);
+      .filter((option) => option.label && option.price > 0)
+      .sort((first, second) => first.price - second.price || first.label.localeCompare(second.label, 'ar'));
   }
 
   function formatMoney(value) {
