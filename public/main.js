@@ -1945,33 +1945,6 @@
       fragment.appendChild(smartSection);
     }
 
-    categories.forEach((category, categoryIndex) => {
-      const section = document.createElement('section');
-      section.className = 'category-products-section';
-      section.dataset.categorySection = category.value;
-      section.style.setProperty('--section-index', categoryIndex + 1);
-      section.innerHTML = `
-        <div class="category-products-head">
-          <div>
-            <p class="eyebrow">\u0645\u0646 \u0642\u0633\u0645 ${escapeHtml(category.title)}</p>
-            <h3>${escapeHtml(category.title)}</h3>
-            <span>${escapeHtml(category.description || '\u0627\u062e\u062a\u064a\u0627\u0631\u0627\u062a \u0645\u0646\u0633\u0642\u0629 \u0645\u0646 \u0646\u0641\u0633 \u0627\u0644\u0642\u0633\u0645')}</span>
-          </div>
-          <button type="button" class="secondary-btn category-view-all" data-action="view-category" data-category="${escapeHtml(category.value)}">
-            \u0639\u0631\u0636 \u0643\u0644 \u0627\u0644\u0642\u0633\u0645
-            <small>${escapeHtml(formatCount(category.products.length))} \u0645\u0646\u062a\u062c</small>
-          </button>
-        </div>
-        <div class="category-products-grid"></div>
-      `;
-
-      const grid = section.querySelector('.category-products-grid');
-      rotateProductsForCategory(category.products, category.value, 2).forEach((product, productIndex) => {
-        grid.appendChild(buildProductCard(product, ((categoryIndex + 1) * 2) + productIndex));
-      });
-      fragment.appendChild(section);
-    });
-
     elements.productGrid.appendChild(fragment);
   }
 
