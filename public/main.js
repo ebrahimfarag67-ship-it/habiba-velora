@@ -1940,7 +1940,7 @@
 
       const smartGrid = smartSection.querySelector('.smart-products-grid');
       smartProducts.forEach((product, productIndex) => {
-        smartGrid.appendChild(buildProductCard(product, productIndex));
+        smartGrid.appendChild(buildHomeFeatureCard(product, productIndex));
       });
       fragment.appendChild(smartSection);
     }
@@ -1973,6 +1973,41 @@
     });
 
     elements.productGrid.appendChild(fragment);
+  }
+
+  function buildHomeFeatureCard(product, index) {
+    const card = document.createElement('article');
+    const tone = getTone(product.tone ?? index);
+    const gallery = getProductGallery(product);
+    const primaryImage = gallery[0] || product.image;
+    const hoverImage = gallery[1] || product.hoverImage || primaryImage;
+    const category = normalizeText(product.category, 'all');
+    const categoryMeta = getCategoryItems().find((item) => item.value === category);
+    const categoryTitle = categoryMeta?.title || category;
+    const imagePriority = index < 2;
+
+    card.className = 'home-feature-card';
+    card.dataset.action = 'view-category';
+    card.dataset.category = category;
+    card.style.setProperty('--card-index', index);
+    card.style.setProperty('--tone-from', tone.from);
+    card.style.setProperty('--tone-to', tone.to);
+    card.style.setProperty('--tone-glow', tone.glow);
+    card.innerHTML = `
+      <button type="button" class="home-feature-link" data-action="view-category" data-category="${escapeHtml(category)}" aria-label="عرض قسم ${escapeHtml(categoryTitle)}">
+        <span class="home-feature-media">
+          <img class="primary" src="${escapeHtml(primaryImage)}" alt="${escapeHtml(product.name)}" loading="${imagePriority ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${imagePriority ? 'high' : 'auto'}" />
+          <img class="hover" src="${escapeHtml(hoverImage)}" alt="" loading="lazy" decoding="async" fetchpriority="low" />
+        </span>
+        <span class="home-feature-content">
+          <small>من قسم ${escapeHtml(categoryTitle)}</small>
+          <strong>${escapeHtml(product.name)}</strong>
+          <em>${escapeHtml(categoryMeta?.description || product.note || 'اختيار أنيق من المجموعة')}</em>
+          <span class="home-feature-cta">اكتشفي القسم</span>
+        </span>
+      </button>
+    `;
+    return card;
   }
 
   function buildProductCard(product, index) {
