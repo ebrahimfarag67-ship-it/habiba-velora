@@ -4237,14 +4237,67 @@ body[data-theme="dark"] .product-card-options strong {
   justify-content: stretch;
 }
 
+.daily-category-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: clamp(10px, 1.5vw, 14px);
+}
+
+.daily-category-grid .home-feature-card {
+  min-height: 330px;
+}
+
+.daily-category-grid .home-feature-link {
+  grid-template-rows: minmax(190px, 1fr) auto;
+  border-color: rgba(222, 193, 143, 0.35);
+  background:
+    radial-gradient(circle at 12% 10%, rgba(255, 255, 255, 0.78), transparent 30%),
+    linear-gradient(145deg, rgba(255, 252, 247, 0.92), rgba(247, 229, 219, 0.72) 46%, rgba(236, 204, 181, 0.42));
+}
+
+.daily-category-grid .home-feature-media {
+  min-height: 190px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.9), transparent 34%),
+    linear-gradient(155deg, rgba(245, 226, 207, 0.88), rgba(232, 198, 177, 0.62));
+}
+
+.daily-category-grid .home-feature-content strong {
+  font-size: clamp(0.92rem, 1.5vw, 1.12rem);
+}
+
+.daily-category-grid .home-feature-content em {
+  font-size: 0.78rem;
+}
+
+body[data-theme="dark"] .daily-category-grid .home-feature-link {
+  border-color: rgba(231, 178, 119, 0.18);
+  background:
+    radial-gradient(circle at 12% 10%, rgba(255, 255, 255, 0.08), transparent 30%),
+    linear-gradient(145deg, rgba(35, 28, 42, 0.94), rgba(24, 19, 30, 0.82) 50%, rgba(231, 178, 119, 0.07));
+}
+
+body[data-theme="dark"] .daily-category-grid .home-feature-media {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.1), transparent 34%),
+    linear-gradient(155deg, rgba(231, 178, 119, 0.1), rgba(238, 181, 193, 0.08));
+}
+
 @media (max-width: 640px) {
   .smart-products-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 
+  .daily-category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .home-feature-card {
     min-height: 268px;
+  }
+
+  .daily-category-grid .home-feature-card {
+    min-height: 246px;
   }
 
   .home-feature-link {
@@ -4256,6 +4309,10 @@ body[data-theme="dark"] .product-card-options strong {
   .home-feature-media {
     min-height: 142px;
     border-radius: 15px;
+  }
+
+  .daily-category-grid .home-feature-media {
+    min-height: 130px;
   }
 
   .home-feature-content {
