@@ -157,6 +157,7 @@
     adminUnlocked: false,
     editingProductId: null,
     ordersCleared: false,
+    homeFeatureTimers: [],
   };
 
   function safeParse(json, fallback) {
@@ -1890,6 +1891,42 @@
     elements.productGrid.appendChild(fragment);
   }
 
+  function clearHomeFeatureTimers() {
+    state.homeFeatureTimers.forEach((timer) => window.clearInterval(timer));
+    state.homeFeatureTimers = [];
+  }
+
+  function featureImagesForCategory(category) {
+    return dedupeList((category?.products || [])
+      .flatMap((product) => getProductGallery(product))
+      .filter(Boolean));
+  }
+
+  function startHomeFeatureRotation(card, images) {
+    if (!card || images.length < 2) {
+      return;
+    }
+
+    const primary = card.querySelector('.home-feature-media img.primary');
+    const hover = card.querySelector('.home-feature-media img.hover');
+    if (!primary || !hover) {
+      return;
+    }
+
+    let imageIndex = 0;
+    const timer = window.setInterval(() => {
+      imageIndex = (imageIndex + 1) % images.length;
+      const nextImage = images[imageIndex];
+      primary.classList.add('is-changing');
+      window.setTimeout(() => {
+        primary.src = nextImage;
+        hover.src = images[(imageIndex + 1) % images.length] || nextImage;
+        primary.classList.remove('is-changing');
+      }, 160);
+    }, 3000);
+    state.homeFeatureTimers.push(timer);
+  }
+
   function renderCategoryShowcase() {
     const categories = getCategoryItems()
       .map((category) => ({
@@ -1898,6 +1935,7 @@
       }))
       .filter((category) => category.products.length);
 
+    clearHomeFeatureTimers();
     elements.productGrid.className = 'category-showcase';
     elements.productGrid.innerHTML = '';
 
@@ -1935,10 +1973,6 @@
             <h3>مدخل سريع لكل قسم</h3>
             <span>صورة واحدة من كل قسم تفتح المجموعة الكاملة بشكل أهدأ.</span>
           </div>
-          <button type="button" class="secondary-btn category-view-all" data-action="view-category" data-category="all">
-            عرض كل المنتجات
-            <small>${escapeHtml(formatCount(state.products.length))} منتج</small>
-          </button>
         </div>
         <div class="category-products-grid smart-products-grid daily-category-grid"></div>
       `;
@@ -1956,7 +1990,8 @@
   function buildHomeFeatureCard(product, index, categoryOverride = null) {
     const card = document.createElement('article');
     const tone = getTone(product.tone ?? index);
-    const gallery = getProductGallery(product);
+    const categoryImages = featureImagesForCategory(categoryOverride);
+    const gallery = categoryImages.length ? categoryImages : getProductGallery(product);
     const primaryImage = gallery[0] || product.image;
     const hoverImage = gallery[1] || product.hoverImage || primaryImage;
     const category = normalizeText(product.category, 'all');
@@ -1985,6 +2020,7 @@
         </span>
       </button>
     `;
+    startHomeFeatureRotation(card, gallery);
     return card;
   }
 
@@ -1999,7 +2035,8 @@
     const priceOptions = normalizePriceOptions(product.priceOptions);
     const price = formatProductCardPrice(product);
     const oldPrice = !priceOptions.length && product.compareAtPrice > product.price ? formatMoney(product.compareAtPrice) : '';
-    const gallery = getProductGallery(product);
+    const categoryImages = featureImagesForCategory(categoryOverride);
+    const gallery = categoryImages.length ? categoryImages : getProductGallery(product);
     const primaryImage = gallery[0] || product.image;
     const hoverImage = gallery[1] || product.hoverImage || primaryImage;
     const rating = product.rating > 0 ? `${formatDecimal(product.rating, 1)}/5` : '';
