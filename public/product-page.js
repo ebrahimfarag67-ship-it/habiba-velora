@@ -18,6 +18,7 @@
   const cartCount = document.getElementById('cartCount');
   const toastRegion = document.getElementById('toastRegion');
   const productOgImage = document.getElementById('productOgImage');
+  let cartDrawer = null;
 
   if (!mount) {
     return;
@@ -136,6 +137,42 @@
     return text;
   }
 
+  function canonicalCategory(value, fallback = '') {
+    const category = normalizeText(value, fallback);
+    const compactCategory = category
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/\s+/g, '')
+      .toLowerCase();
+
+    if (compactCategory === 'اساور') {
+      return 'أساور';
+    }
+
+    return category;
+  }
+
+  function defaultProductCopy(category) {
+    const normalizedCategory = canonicalCategory(category);
+    const copyByCategory = {
+      سلاسل: 'سلسلة أنيقة بتفاصيل ناعمة تضيف لمسة راقية للإطلالة اليومية.',
+      انسيالات: 'انسيال خفيف بتصميم أنيق يناسب الاستخدام اليومي والمناسبات.',
+      أساور: 'أسورة بتفاصيل ناعمة ولمعة هادئة تناسب التنسيق اليومي.',
+      خواتم: 'خاتم بتصميم عملي وأنيق يكمّل الإطلالة بسهولة.',
+      حلقان: 'حلق ناعم بتفاصيل رقيقة يضيف لمسة أنثوية هادئة.',
+      كفرات: 'كفر عملي بلمسة أنيقة يحافظ على الموبايل ويكمل الستايل.',
+    };
+
+    return copyByCategory[normalizedCategory] || 'قطعة أنيقة بتفاصيل ناعمة مناسبة للتنسيق اليومي.';
+  }
+
+  function normalizeProductCopy(value, fallback) {
+    const text = normalizeText(value);
+    if (!text || text === 'تفاصيل أنيقة وواضحة للمنتج.') {
+      return fallback;
+    }
+    return text;
+  }
+
   function toNumber(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
@@ -230,14 +267,16 @@
     const compareAtPrice = Math.max(0, toNumber(source.compareAtPrice, finalPrice ? Math.round(finalPrice * 1.15) : 0));
     const colors = Array.isArray(source.colors) ? source.colors.map((item) => normalizeText(item)).filter(Boolean) : [];
     const sizes = Array.isArray(source.sizes) ? source.sizes.map((item) => normalizeText(item)).filter(Boolean) : [];
+    const category = canonicalCategory(source.category, 'حلقان');
+    const fallbackCopy = defaultProductCopy(category);
 
     return {
       id: normalizeText(source.id, `PRD-${String(index + 101).padStart(3, '0')}`),
       name: normalizeText(source.name, 'منتج جديد'),
-      category: normalizeText(source.category, 'حلقان'),
+      category,
       badge: normalizeText(source.badge, 'مميز'),
-      note: normalizeText(source.note, 'تفاصيل أنيقة وواضحة للمنتج.'),
-      details: normalizeText(source.details, normalizeText(source.note, 'تفاصيل أنيقة وواضحة للمنتج.')),
+      note: normalizeProductCopy(source.note, fallbackCopy),
+      details: normalizeProductCopy(source.details, normalizeProductCopy(source.note, fallbackCopy)),
       price: finalPrice,
       stock: Math.max(0, Math.floor(toNumber(source.stock, 0))),
       compareAtPrice,
@@ -407,11 +446,55 @@
     return gallery[index] || gallery[0] || product?.image || '';
   }
 
-  function getProductVariantLabel(color, size) {
+  function getProductVariantLabel(color, size, option = '') {
     const parts = [];
+    if (option) parts.push(option);
     if (color) parts.push(color);
     if (size) parts.push(size);
     return parts.join(' - ') || 'بدون خيارات';
+  }
+
+  function cartLinePrice(item) {
+    const product = getProduct(item.productId);
+    if (toNumber(item.price, 0) > 0) {
+      return toNumber(item.price, 0);
+    }
+    return product ? toNumber(product.price, 0) : 0;
+  }
+
+  function cartSubtotal() {
+    return state.cart.reduce((sum, item) => sum + (Number(item.qty) || 0) * cartLinePrice(item), 0);
+  }
+
+  function buildCartItemMarkup(item, product) {
+    const variant = getProductVariantLabel(item.color, item.size, item.option);
+    const linePrice = cartLinePrice(item);
+    return `
+      <div class="cart-item-copy">
+        <strong>${escapeHtml(product.name)}</strong>
+        <p>${escapeHtml(product.category)} • ${escapeHtml(variant)}</p>
+        <small>${escapeHtml(formatMoney(linePrice))} للوحدة</small>
+      </div>
+      <div class="cart-quantity">
+        <button type="button" class="qty-btn" data-action="qty-decrease" aria-label="إنقاص">-</button>
+        <strong>${escapeHtml(formatCount(item.qty))}</strong>
+        <button type="button" class="qty-btn" data-action="qty-increase" aria-label="زيادة">+</button>
+      </div>
+      <button type="button" class="remove-link" data-action="cart-remove">حذف</button>
+    `;
+  }
+
+  function createCartItemElement(item, extraClass = '') {
+    const product = getProduct(item.productId);
+    if (!product) {
+      return null;
+    }
+
+    const line = document.createElement('article');
+    line.className = `cart-item${extraClass ? ` ${extraClass}` : ''}`;
+    line.dataset.cartId = item.id;
+    line.innerHTML = buildCartItemMarkup(item, product);
+    return line;
   }
 
   function availabilityLabel(stock) {
@@ -490,6 +573,183 @@
     const count = state.cart.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
     if (cartCount) {
       cartCount.textContent = formatCount(count);
+    }
+  }
+
+  function ensureCartDrawer() {
+    if (cartDrawer) {
+      return cartDrawer;
+    }
+
+    const drawer = document.createElement('div');
+    drawer.className = 'cart-drawer-shell';
+    drawer.hidden = true;
+    drawer.setAttribute('aria-hidden', 'true');
+    drawer.innerHTML = `
+      <button type="button" class="cart-drawer-backdrop" data-action="close-cart-drawer" aria-label="إغلاق السلة"></button>
+      <aside class="cart-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle">
+        <div class="cart-drawer-head">
+          <div>
+            <p class="eyebrow">السلة</p>
+            <h2 id="cartDrawerTitle">مراجعة سريعة</h2>
+          </div>
+          <button type="button" class="icon-btn cart-drawer-close" data-action="close-cart-drawer" aria-label="إغلاق السلة">×</button>
+        </div>
+        <div class="cart-drawer-meta">
+          <span data-cart-drawer-count>0 عنصر</span>
+          <small>راجعي الطلب بسرعة قبل الدفع</small>
+        </div>
+        <div class="cart-drawer-list" data-cart-drawer-list></div>
+        <div class="cart-drawer-footer">
+          <div class="summary-line total">
+            <span>الإجمالي الفرعي</span>
+            <strong data-cart-drawer-total>0 ج.م</strong>
+          </div>
+          <div class="cart-drawer-actions">
+            <a class="primary-btn full" href="/cart">متابعة الدفع</a>
+            <button type="button" class="secondary-btn full" data-action="close-cart-drawer">متابعة التسوق</button>
+          </div>
+        </div>
+      </aside>
+    `;
+    drawer.addEventListener('click', handleCartDrawerClick);
+    document.body.appendChild(drawer);
+    cartDrawer = drawer;
+    return drawer;
+  }
+
+  function renderCartDrawer() {
+    if (!cartDrawer) {
+      return;
+    }
+
+    const list = cartDrawer.querySelector('[data-cart-drawer-list]');
+    const countLabel = cartDrawer.querySelector('[data-cart-drawer-count]');
+    const totalLabel = cartDrawer.querySelector('[data-cart-drawer-total]');
+    const checkoutLink = cartDrawer.querySelector('.cart-drawer-actions .primary-btn');
+    const count = state.cart.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+    const subtotal = cartSubtotal();
+
+    if (countLabel) {
+      countLabel.textContent = `${formatCount(count)} ${count === 1 ? 'عنصر' : 'عناصر'}`;
+    }
+    if (totalLabel) {
+      totalLabel.textContent = formatMoney(subtotal);
+    }
+    if (!list) {
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    state.cart.forEach((item) => {
+      const line = createCartItemElement(item, 'drawer-cart-item');
+      if (line) {
+        fragment.appendChild(line);
+      }
+    });
+
+    if (!fragment.childNodes.length) {
+      list.innerHTML = `
+        <div class="empty-state compact">
+          <strong>السلة فارغة</strong>
+          <p>اختاري منتج، والدرج هيفتح لك مراجعة سريعة هنا.</p>
+        </div>
+      `;
+      checkoutLink?.setAttribute('aria-disabled', 'true');
+      checkoutLink?.classList.add('disabled');
+      return;
+    }
+
+    list.innerHTML = '';
+    list.appendChild(fragment);
+    checkoutLink?.removeAttribute('aria-disabled');
+    checkoutLink?.classList.remove('disabled');
+  }
+
+  function openCartDrawer() {
+    const drawer = ensureCartDrawer();
+    renderCartDrawer();
+    drawer.hidden = false;
+    drawer.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('cart-drawer-open');
+    requestAnimationFrame(() => {
+      drawer.classList.add('is-open');
+      drawer.querySelector('.cart-drawer-close')?.focus({ preventScroll: true });
+    });
+  }
+
+  function closeCartDrawer() {
+    if (!cartDrawer) {
+      return;
+    }
+
+    cartDrawer.classList.remove('is-open');
+    cartDrawer.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('cart-drawer-open');
+    window.setTimeout(() => {
+      if (!cartDrawer?.classList.contains('is-open')) {
+        cartDrawer.hidden = true;
+      }
+    }, 220);
+  }
+
+  function changeCartQty(cartId, delta) {
+    const item = state.cart.find((entry) => entry.id === cartId);
+    if (!item) {
+      return;
+    }
+
+    const product = getProduct(item.productId);
+    const maxQty = Math.max(1, Number(product?.stock) || item.qty || 1);
+    const nextQty = Math.min(maxQty, (Number(item.qty) || 0) + delta);
+    if (nextQty <= 0) {
+      state.cart = state.cart.filter((entry) => entry.id !== cartId);
+    } else {
+      item.qty = nextQty;
+    }
+
+    saveCart();
+    updateCartCounter();
+    renderCartDrawer();
+  }
+
+  function removeCartItem(cartId) {
+    state.cart = state.cart.filter((entry) => entry.id !== cartId);
+    saveCart();
+    updateCartCounter();
+    renderCartDrawer();
+  }
+
+  function handleCartDrawerClick(event) {
+    const button = event.target.closest('[data-action]');
+    if (!button) {
+      return;
+    }
+
+    const action = button.dataset.action;
+    if (action === 'close-cart-drawer') {
+      closeCartDrawer();
+      return;
+    }
+
+    const cartRow = button.closest('[data-cart-id]');
+    const cartId = cartRow?.dataset?.cartId;
+    if (!cartId) {
+      return;
+    }
+
+    if (action === 'qty-increase') {
+      changeCartQty(cartId, 1);
+      return;
+    }
+
+    if (action === 'qty-decrease') {
+      changeCartQty(cartId, -1);
+      return;
+    }
+
+    if (action === 'cart-remove') {
+      removeCartItem(cartId);
     }
   }
 
@@ -595,6 +855,7 @@
 
     saveCart();
     updateCartCounter();
+    renderCartDrawer();
     animateAddToCart(sourceElement);
     showToast('تمت الإضافة', `${product.name} الآن داخل السلة.`, 'success');
   }
@@ -628,6 +889,31 @@
     if (productOgImage) {
       productOgImage.setAttribute('content', getProductGalleryImage(product) || '/assets/habiba-velora-hero.jpg');
     }
+  }
+
+  function closeProductImagePreview() {
+    document.querySelector('.product-image-preview-shell')?.remove();
+    document.body.classList.remove('product-image-preview-open');
+  }
+
+  function openProductImagePreview(image, label) {
+    if (!image) {
+      return;
+    }
+
+    closeProductImagePreview();
+    const shell = document.createElement('div');
+    shell.className = 'product-image-preview-shell';
+    shell.innerHTML = `
+      <button type="button" class="product-image-preview-backdrop" data-action="close-image-preview" aria-label="إغلاق معاينة الصورة"></button>
+      <div class="product-image-preview-panel" role="dialog" aria-modal="true" aria-label="معاينة صورة ${escapeHtml(label)}">
+        <button type="button" class="product-image-preview-close" data-action="close-image-preview" aria-label="إغلاق">×</button>
+        <img src="${escapeHtml(image)}" alt="${escapeHtml(label)}" loading="eager" decoding="async" fetchpriority="high" />
+      </div>
+    `;
+    document.body.appendChild(shell);
+    document.body.classList.add('product-image-preview-open');
+    requestAnimationFrame(() => shell.classList.add('is-open'));
   }
 
   function render() {
@@ -684,6 +970,7 @@
         <div class="product-page-layout">
           <article class="product-page-gallery">
             <div class="product-page-panel product-page-main">
+              ${activeImage ? `<button type="button" class="product-image-preview-trigger" data-action="preview-image" aria-label="معاينة صورة ${escapeHtml(product.name)}"></button>` : ''}
               ${activeImage ? `<img src="${escapeHtml(activeImage)}" alt="${escapeHtml(product.name)}" loading="eager" fetchpriority="high" decoding="async" />` : `<div class="empty-state compact"><strong>&#1575;&#1604;&#1589;&#1608;&#1585;&#1577; &#1594;&#1610;&#1585; &#1605;&#1578;&#1575;&#1581;&#1577;</strong></div>`}
             </div>
             <div class="product-page-thumbnails">
@@ -839,6 +1126,13 @@
     }
 
     const action = actionButton.dataset.action;
+    if (action === 'preview-image') {
+      const gallery = getProductGallery(state.product);
+      const activeImage = gallery[state.galleryIndex] || gallery[0] || state.product?.image || '';
+      openProductImagePreview(activeImage, state.product?.name || 'المنتج');
+      return;
+    }
+
     if (action === 'gallery') {
       state.galleryIndex = Number(actionButton.dataset.index || 0);
       render();
@@ -913,6 +1207,24 @@
       setTheme(state.theme === 'dark' ? 'light' : 'dark');
     });
 
+    cartJump?.addEventListener('click', (event) => {
+      event.preventDefault();
+      openCartDrawer();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeCartDrawer();
+        closeProductImagePreview();
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      if (event.target.closest('[data-action="close-image-preview"]')) {
+        closeProductImagePreview();
+      }
+    });
+
     window.addEventListener('storage', () => {
       state.products = loadProducts();
       state.cart = loadCart();
@@ -922,6 +1234,7 @@
         state.productId = state.product.id;
       }
       updateCartCounter();
+      renderCartDrawer();
       render();
     });
   }
@@ -930,6 +1243,5 @@
   setTheme(state.theme);
   updateCartCounter();
   render();
-  syncProductsFromDatabase();
 })();
 

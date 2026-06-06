@@ -282,6 +282,9 @@
   }
 
   function renderEmptyState(message) {
+    preview.innerHTML = '';
+    preview.closest('.return-summary-panel')?.classList.add('is-empty');
+    return;
     preview.innerHTML = `
       <div class="empty-state compact">
         <strong>${escapeHtml(message)}</strong>
@@ -318,6 +321,8 @@
         orderStatus: latestRequest.orderStatus || 'pending',
       };
     }
+
+    preview.closest('.return-summary-panel')?.classList.remove('is-empty');
 
     const orderSummary = previewData.items.length
       ? previewData.items.map((item) => `

@@ -5,7 +5,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '172005';
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '32mb',
+      sizeLimit: '8mb',
     },
   },
 };
@@ -42,7 +42,7 @@ export default async function handler(request, response) {
 
   const mimeType = match[1];
   const imageBuffer = Buffer.from(match[2], 'base64');
-  if (imageBuffer.length > 8 * 1024 * 1024) {
+  if (imageBuffer.length > 3 * 1024 * 1024) {
     response.status(413).json({ message: 'Image is too large after compression.' });
     return;
   }

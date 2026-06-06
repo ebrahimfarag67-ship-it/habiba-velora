@@ -20,6 +20,11 @@ export default async function handler(request, response) {
 
   response.setHeader('Content-Type', blob.contentType || 'image/webp');
   response.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  response.setHeader('CDN-Cache-Control', 'public, max-age=31536000, immutable');
+  response.setHeader('Vercel-CDN-Cache-Control', 'public, max-age=31536000, immutable');
+  if (blob.size) {
+    response.setHeader('Content-Length', String(blob.size));
+  }
 
   const reader = blob.stream.getReader();
   while (true) {

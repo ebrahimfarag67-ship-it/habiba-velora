@@ -22,6 +22,7 @@
   };
 
   const adminCredentials = store.adminCredentials || { password: '172005' };
+  const vodafoneCashNumber = '01024622437';
   const defaultProducts = Array.isArray(store.products) ? store.products : [];
   const egyptGovernorates = Array.isArray(store.governorates) && store.governorates.length
     ? store.governorates
@@ -46,6 +47,7 @@
     themeToggle: document.getElementById('themeToggle'),
     cartJump: document.getElementById('cartJump'),
     cartCount: document.getElementById('cartCount'),
+    cartDrawer: null,
     productSearch: document.getElementById('productSearch'),
     catalogTools: document.querySelector('.catalog-tools'),
     categoryFilters: document.getElementById('categoryFilters'),
@@ -64,6 +66,10 @@
     customerArea: document.getElementById('customerArea'),
     customerGovernorate: document.getElementById('customerGovernorate'),
     paymentMethod: document.getElementById('paymentMethod'),
+    paymentProofPanel: null,
+    paymentReferenceInput: null,
+    paymentSenderPhone: null,
+    paymentTransactionId: null,
     orderNote: document.getElementById('orderNote'),
     clearCartButton: document.getElementById('clearCartButton'),
     dashboard: document.getElementById('dashboard'),
@@ -103,7 +109,6 @@
     adminUnlockButton: document.getElementById('adminUnlockButton'),
     adminGateHint: document.getElementById('adminGateHint'),
     toastRegion: document.getElementById('toastRegion'),
-    quickViewModal: null,
   };
 
   const moneyFormatter = new Intl.NumberFormat('ar-EG-u-nu-latn');
@@ -149,15 +154,20 @@
       query: '',
       category: 'all',
       wishlistOnly: false,
-      viewMode: 'featured',
       orderQuery: '',
       orderStatus: 'all',
       adminSection: 'all',
+      showcaseOnly: true,
     },
     adminUnlocked: false,
     editingProductId: null,
     ordersCleared: false,
-    homeFeatureTimers: [],
+  };
+
+  const dynamicHeroState = {
+    activeIndex: 0,
+    timer: null,
+    signature: '',
   };
 
   function safeParse(json, fallback) {
@@ -254,6 +264,92 @@
     return text;
   }
 
+  function canonicalCategory(value, fallback = '') {
+    const category = normalizeText(value, fallback);
+    const compactCategory = category
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/\s+/g, '')
+      .toLowerCase();
+
+    if (compactCategory === 'اساور') {
+      return 'أساور';
+    }
+
+    return category;
+  }
+
+  function defaultProductCopy(category) {
+    const normalizedCategory = canonicalCategory(category);
+    const copyByCategory = {
+      سلاسل: 'سلسلة أنيقة بتفاصيل ناعمة تضيف لمسة راقية للإطلالة اليومية.',
+      انسيالات: 'انسيال خفيف بتصميم أنيق يناسب الاستخدام اليومي والمناسبات.',
+      أساور: 'أسورة بتفاصيل ناعمة ولمعة هادئة تناسب التنسيق اليومي.',
+      خواتم: 'خاتم بتصميم عملي وأنيق يكمّل الإطلالة بسهولة.',
+      حلقان: 'حلق ناعم بتفاصيل رقيقة يضيف لمسة أنثوية هادئة.',
+      كفرات: 'كفر عملي بلمسة أنيقة يحافظ على الموبايل ويكمل الستايل.',
+    };
+
+    return copyByCategory[normalizedCategory] || 'قطعة أنيقة بتفاصيل ناعمة مناسبة للتنسيق اليومي.';
+  }
+
+  function normalizeProductCopy(value, fallback) {
+    const text = normalizeText(value);
+    if (!text || text === 'تفاصيل أنيقة وواضحة للمنتج.') {
+      return fallback;
+    }
+    return text;
+  }
+
+  function buildCategoryPageUrl(category) {
+    return `/category?name=${encodeURIComponent(canonicalCategory(category, 'all'))}`;
+  }
+
+  function getRouteCategory() {
+    if (document.body?.dataset.page !== 'category') {
+      return '';
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    return canonicalCategory(params.get('name') || 'all', 'all');
+  }
+
+  function isCategoryPage() {
+    return document.body?.dataset.page === 'category';
+  }
+
+  function applyRouteFilters() {
+    const routeCategory = getRouteCategory();
+    if (!routeCategory) {
+      return;
+    }
+
+    state.filters.category = routeCategory;
+    state.filters.showcaseOnly = false;
+    state.filters.wishlistOnly = false;
+  }
+
+  function renderCategoryPageHeader() {
+    if (!isCategoryPage()) {
+      return;
+    }
+
+    const category = state.filters.category || getRouteCategory() || 'all';
+    const title = document.getElementById('categoryPageTitle');
+    const copy = document.getElementById('categoryPageCopy');
+    const count = productsForCategory(category).length;
+    const label = category === 'all' ? 'كل المنتجات' : `قسم ${category}`;
+
+    if (title) {
+      title.textContent = label;
+    }
+
+    if (copy) {
+      copy.textContent = count
+        ? `${formatCount(count)} منتج متاح داخل المجموعة. اختاري القطعة وافتحي صفحة المنتج للتفاصيل والطلب.`
+        : 'لا توجد منتجات داخل هذا القسم حاليًا، ارجعي للمتجر لاختيار مجموعة أخرى.';
+    }
+  }
+
   function toNumber(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
@@ -266,10 +362,19 @@
   function formatProductCardPrice(product) {
     const options = normalizePriceOptions(product?.priceOptions);
     if (options.length) {
-      return options
-        .slice(0, 3)
-        .map((option) => `${option.label}: ${formatMoney(option.price)}`)
-        .join('\n');
+      const prices = options.map((option) => option.price).filter((price) => price > 0);
+      if (!prices.length) {
+        return formatMoney(product?.price || 0);
+      }
+
+      const minPrice = Math.min(...prices);
+      const maxPrice = Math.max(...prices);
+
+      if (minPrice === maxPrice || options.length === 1) {
+        return formatMoney(minPrice);
+      }
+
+      return `من ${formatMoney(minPrice)}`;
     }
     return formatMoney(product?.price || 0);
   }
@@ -446,6 +551,7 @@
   function loadImage(src) {
     return new Promise((resolve, reject) => {
       const image = new Image();
+      image.decoding = 'async';
       image.onload = () => resolve(image);
       image.onerror = () => reject(new Error('image-load-failed'));
       image.src = src;
@@ -457,41 +563,55 @@
 
     try {
       const image = await loadImage(originalUrl);
-      const maxSize = 920;
-      const scale = Math.min(maxSize / image.width, maxSize / image.height, 1);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(image.width * scale));
-      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const targetBytes = 220 * 1024;
+      const maxSizes = [820, 720, 620, 520, 420];
+      const qualitySteps = [0.64, 0.54, 0.44, 0.34, 0.26, 0.2];
+      let bestBlob = null;
 
-      const context = canvas.getContext('2d');
-      if (!context) {
-        return originalUrl;
-      }
+      for (const maxSize of maxSizes) {
+        const scale = Math.min(maxSize / image.width, maxSize / image.height, 1);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
 
-      context.imageSmoothingEnabled = true;
-      context.imageSmoothingQuality = 'high';
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const context = canvas.getContext('2d');
+        if (!context) {
+          continue;
+        }
 
-      const qualitySteps = [0.7, 0.58, 0.48, 0.38, 0.3];
-      let blob = null;
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-      for (const quality of qualitySteps) {
-        blob = await new Promise((resolve) => {
-          canvas.toBlob(resolve, 'image/webp', quality);
-        });
+        for (const quality of qualitySteps) {
+          const blob = await new Promise((resolve) => {
+            canvas.toBlob(resolve, 'image/webp', quality);
+          });
 
-        if (blob && blob.size <= 460 * 1024) {
-          break;
+          if (!blob) {
+            continue;
+          }
+
+          if (!bestBlob || blob.size < bestBlob.size) {
+            bestBlob = blob;
+          }
+
+          if (blob.size <= targetBytes) {
+            return await fileToDataUrl(blob);
+          }
         }
       }
 
-      if (!blob) {
-        return originalUrl;
+      if (bestBlob && bestBlob.size < Math.min(file.size, 2 * 1024 * 1024)) {
+        return await fileToDataUrl(bestBlob);
       }
 
-      return await fileToDataUrl(blob);
+      throw new Error('image-compression-failed');
     } catch {
-      return await fileToDataUrl(file);
+      if (file.size <= 450 * 1024) {
+        return await fileToDataUrl(file);
+      }
+      throw new Error('image-compression-failed');
     } finally {
       URL.revokeObjectURL(originalUrl);
     }
@@ -641,15 +761,17 @@
     const price = Math.max(0, toNumber(source.price, 0)) || (optionPrices.length ? Math.min(...optionPrices) : 0);
     const compareAtPrice = Math.max(0, toNumber(source.compareAtPrice, price ? Math.round(price * 1.15) : 0));
     const tone = Number.isFinite(Number(source.tone)) ? Number(source.tone) : index;
+    const category = canonicalCategory(source.category, 'حلقان');
+    const fallbackCopy = defaultProductCopy(category);
 
     return {
       id: normalizeText(source.id, nextProductId(defaultProducts.concat([source]))),
       name: normalizeText(source.name, 'منتج جديد'),
-      category: normalizeText(source.category, 'حلقان'),
+      category,
       badge: normalizeText(source.badge, 'مميز'),
       featured: Boolean(source.featured || source.homeFeatured),
-      note: normalizeText(source.note, 'تفاصيل أنيقة وواضحة للمنتج.'),
-      details: normalizeText(source.details, normalizeText(source.note, 'تفاصيل أنيقة وواضحة للمنتج.')),
+      note: normalizeProductCopy(source.note, fallbackCopy),
+      details: normalizeProductCopy(source.details, normalizeProductCopy(source.note, fallbackCopy)),
       price,
       stock: Math.max(0, Math.floor(toNumber(source.stock, 0))),
       compareAtPrice,
@@ -722,6 +844,16 @@
       area: normalizeText(order?.area, ''),
       fullAddress: normalizeText(order?.fullAddress, [normalizeText(order?.governorate || order?.city, ''), normalizeText(order?.area, ''), normalizeText(order?.address, '')].filter(Boolean).join(' • ')),
       payment: normalizeText(order?.payment, 'عند الاستلام'),
+      paymentStatus: normalizeText(order?.paymentStatus, ''),
+      paymentReference: normalizeText(order?.paymentReference, ''),
+      paymentPhone: normalizeText(order?.paymentPhone, ''),
+      paymentSenderPhone: normalizeText(order?.paymentSenderPhone, ''),
+      paymentTransactionId: normalizeText(order?.paymentTransactionId, ''),
+      paymentConfirmedAt: normalizeText(order?.paymentConfirmedAt, ''),
+      paymentGateway: normalizeText(order?.paymentGateway, ''),
+      paymentGatewayReference: normalizeText(order?.paymentGatewayReference, ''),
+      paymentGatewayTransactionId: normalizeText(order?.paymentGatewayTransactionId, ''),
+      paymentGatewayMessage: normalizeText(order?.paymentGatewayMessage, ''),
       note: normalizeText(order?.note, ''),
       items,
       subtotal,
@@ -896,6 +1028,7 @@
     state.products = result.products.map((product, index) => normalizeProduct(product, index));
     saveStorage(storageKeys.products, state.products);
     syncCartWithInventory();
+    applyRouteFilters();
     renderAll();
 
     fetchReviewSummary().then((summary) => {
@@ -1037,6 +1170,15 @@
       phone: order.phone,
       fullAddress: order.fullAddress,
       payment: order.payment,
+      paymentStatus: order.paymentStatus,
+      paymentReference: order.paymentReference,
+      paymentPhone: order.paymentPhone,
+      paymentSenderPhone: order.paymentSenderPhone,
+      paymentTransactionId: order.paymentTransactionId,
+      paymentGateway: order.paymentGateway,
+      paymentGatewayReference: order.paymentGatewayReference,
+      paymentGatewayTransactionId: order.paymentGatewayTransactionId,
+      paymentGatewayMessage: order.paymentGatewayMessage,
       total: order.total,
       deliveryToken: order.deliveryToken,
       items: (order.items || []).map((item) => ({
@@ -1112,6 +1254,95 @@
     return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
   }
 
+  function createPaymentReference(orderId) {
+    const digits = String(orderId || '').replace(/\D/g, '').slice(-4).padStart(4, '0');
+    const random = Math.floor(100 + Math.random() * 900);
+    return `HV-${digits}-${random}`;
+  }
+
+  function createDraftPaymentReference() {
+    const bucket = Math.floor(Date.now() / 60000).toString().slice(-4);
+    const random = Math.floor(100 + Math.random() * 900);
+    return `HV-${bucket}-${random}`;
+  }
+
+  function isVodafoneCashPayment(payment) {
+    return normalizeText(payment) === 'فودافون كاش';
+  }
+
+  function isCardGatewayPayment(payment) {
+    return normalizeText(payment) === 'فيزا / ماستر كارد';
+  }
+
+  function isGatewayPayment(payment) {
+    return isCardGatewayPayment(payment);
+  }
+
+  function paymentStatusLabel(status) {
+    return {
+      pending_review: 'بانتظار مراجعة التحويل',
+      pending_gateway: 'بانتظار تأكيد Paymob',
+      cash_on_delivery: 'الدفع عند الاستلام',
+      not_required: 'لا يحتاج تأكيد دفع',
+      confirmed: 'تم تأكيد الدفع',
+      failed: 'فشل أو رفض الدفع',
+    }[status] || status || 'غير محدد';
+  }
+
+  function ensurePaymentProofFields() {
+    if (!elements.checkoutForm || elements.paymentProofPanel) {
+      return;
+    }
+
+    const panel = document.createElement('div');
+    panel.className = 'payment-proof-panel';
+    panel.hidden = true;
+    panel.innerHTML = `
+      <div class="payment-proof-head">
+        <span>فودافون كاش مباشر</span>
+        <strong dir="ltr">${escapeHtml(vodafoneCashNumber)}</strong>
+      </div>
+      <p>حوّل إجمالي الطلب على رقم فودافون كاش، واكتب كود الطلب في ملاحظات التحويل إن أمكن. الطلب هيوصل للبوت بانتظار مراجعة التحويل.</p>
+      <label class="payment-reference-field">
+        كود الدفع الخاص بالطلب
+        <input id="paymentReferenceInput" type="text" readonly dir="ltr" />
+      </label>
+      <div class="inline-fields">
+        <label>
+          رقم المحفظة اللي حولت منها
+          <input id="paymentSenderPhone" type="tel" inputmode="tel" placeholder="مثال: 01000000000" />
+        </label>
+        <label>
+          رقم عملية التحويل
+          <input id="paymentTransactionId" type="text" placeholder="من رسالة فودافون كاش" />
+        </label>
+      </div>
+    `;
+
+    const noteLabel = elements.orderNote?.closest('label');
+    elements.checkoutForm.insertBefore(panel, noteLabel || elements.checkoutForm.querySelector('button[type="submit"]'));
+    elements.paymentProofPanel = panel;
+    elements.paymentReferenceInput = document.getElementById('paymentReferenceInput');
+    elements.paymentSenderPhone = document.getElementById('paymentSenderPhone');
+    elements.paymentTransactionId = document.getElementById('paymentTransactionId');
+  }
+
+  function updatePaymentProofFields() {
+    ensurePaymentProofFields();
+    if (!elements.paymentProofPanel) {
+      return;
+    }
+
+    const isVodafone = isVodafoneCashPayment(elements.paymentMethod?.value);
+    elements.paymentProofPanel.hidden = !isVodafone;
+    if (isVodafone && elements.paymentReferenceInput && !elements.paymentReferenceInput.value) {
+      elements.paymentReferenceInput.value = createDraftPaymentReference();
+    }
+    [elements.paymentSenderPhone, elements.paymentTransactionId].filter(Boolean).forEach((input) => {
+      input.required = isVodafone;
+    });
+  }
+
   function invoiceUrl(order) {
     return `/invoice?o=${encodeURIComponent(order?.id || '')}&t=${encodeURIComponent(order?.deliveryToken || '')}`;
   }
@@ -1134,6 +1365,41 @@
       return;
     }
 
+    const gatewayInstructions = isGatewayPayment(order.payment) ? `
+      <div class="payment-success-box">
+        <span>حالة الدفع الإلكتروني</span>
+        <strong>${order.paymentStatus === 'confirmed' ? 'Paymob أكد وصول الدفع' : 'بانتظار تأكيد Paymob'}</strong>
+        <div class="payment-success-grid">
+          <div>
+            <small>بوابة الدفع</small>
+            <b>Paymob</b>
+          </div>
+          <div>
+            <small>كود ربط الدفع</small>
+            <b dir="ltr">${escapeHtml(order.paymentReference || '-')}</b>
+          </div>
+        </div>
+        <p>لو الدفع اتأكد، البوت ولوحة الطلبات هيتحدثوا تلقائيًا من webhook. متعتمدش على لقطة شاشة أو رقم كتبه العميل.</p>
+      </div>
+    ` : '';
+    const vodafoneInstructions = isVodafoneCashPayment(order.payment) ? `
+      <div class="payment-success-box">
+        <span>فودافون كاش مباشر</span>
+        <strong>حوّل ${escapeHtml(formatMoney(order.total))} على الرقم</strong>
+        <div class="payment-success-grid">
+          <div>
+            <small>رقم فودافون كاش</small>
+            <b dir="ltr">${escapeHtml(vodafoneCashNumber)}</b>
+          </div>
+          <div>
+            <small>كود الطلب</small>
+            <b dir="ltr">${escapeHtml(order.paymentReference || '-')}</b>
+          </div>
+        </div>
+        <p>اكتب كود الطلب في ملاحظات التحويل. البوت هيعرض الطلب بانتظار تأكيد وصول التحويل يدويًا.</p>
+      </div>
+    ` : '';
+
     elements.orderSuccessPanel.hidden = false;
     elements.orderSuccessPanel.innerHTML = `
       <div class="order-success-icon" aria-hidden="true">\u2713</div>
@@ -1152,8 +1418,11 @@
       </div>
       <div class="order-success-summary">
         <span>\u0627\u0644\u062d\u0627\u0644\u0629: ${escapeHtml(statusMeta[order.status]?.label || '\u0642\u064a\u062f \u0627\u0644\u062a\u062c\u0647\u064a\u0632')}</span>
+        <span>\u0627\u0644\u062f\u0641\u0639: ${escapeHtml(paymentStatusLabel(order.paymentStatus))}</span>
         <strong>${escapeHtml(formatMoney(order.total))}</strong>
       </div>
+      ${gatewayInstructions}
+      ${vodafoneInstructions}
       <div class="order-success-steps" aria-label="خطوات متابعة الطلب">
         <span class="active">استلام الطلب</span>
         <span>تجهيز الطلب</span>
@@ -1283,6 +1552,37 @@
 
   function cartSubtotal() {
     return state.cart.reduce((sum, item) => sum + item.qty * cartLinePrice(item), 0);
+  }
+
+  function buildCartItemMarkup(item, product) {
+    const variant = getProductVariantLabel(item.color, item.size, item.option);
+    const linePrice = cartLinePrice(item);
+    return `
+      <div class="cart-item-copy">
+        <strong>${escapeHtml(product.name)}</strong>
+        <p>${escapeHtml(product.category)} • ${escapeHtml(variant)}</p>
+        <small>${escapeHtml(formatMoney(linePrice))} للوحدة</small>
+      </div>
+      <div class="cart-quantity">
+        <button type="button" class="qty-btn" data-action="qty-decrease" aria-label="إنقاص">-</button>
+        <strong>${escapeHtml(formatCount(item.qty))}</strong>
+        <button type="button" class="qty-btn" data-action="qty-increase" aria-label="زيادة">+</button>
+      </div>
+      <button type="button" class="remove-link" data-action="cart-remove">حذف</button>
+    `;
+  }
+
+  function createCartItemElement(item, extraClass = '') {
+    const product = getProduct(item.productId);
+    if (!product) {
+      return null;
+    }
+
+    const line = document.createElement('article');
+    line.className = `cart-item${extraClass ? ` ${extraClass}` : ''}`;
+    line.dataset.cartId = item.id;
+    line.innerHTML = buildCartItemMarkup(item, product);
+    return line;
   }
 
   function syncCartWithInventory() {
@@ -1442,9 +1742,167 @@
     handleAdminShortcut(event, 8);
   }
 
+  function getCategoryButtonImage(category) {
+    if (!elements.categoryFilters) {
+      return '';
+    }
+
+    const button = Array.from(elements.categoryFilters.querySelectorAll('[data-category]'))
+      .find((item) => canonicalCategory(item.dataset.category || 'all', 'all') === category);
+    const image = normalizeText(button?.querySelector('img')?.getAttribute('src'));
+    if (!image || image.includes('habibvelora-logo-transparent')) {
+      return '';
+    }
+    return image;
+  }
+
+  function buildDynamicHeroItems() {
+    const categoryItems = getCategoryItems({ includeProductCategories: true })
+      .map((category, index) => {
+        const products = productsForCategory(category.value).filter((product) => product.stock !== 0);
+        const product = rotateProductsForCategory(products, `${category.value}-${Math.floor(Date.now() / 45000)}`, 1)[0]
+          || products.find((item) => getProductGallery(item).length)
+          || products[0]
+          || null;
+        const image = getProductGallery(product)[0] || getCategoryButtonImage(category.value);
+        if (!image) {
+          return null;
+        }
+
+        return {
+          product,
+          image,
+          tone: getTone(product?.tone ?? index),
+        };
+      })
+      .filter(Boolean);
+
+    const items = categoryItems.length
+      ? categoryItems
+      : [
+          { product: { name: 'HabibaVelora', tone: 0 }, image: '/assets/habiba-velora-hero.jpg' },
+          { product: { name: 'HabibaVelora', tone: 1 }, image: '/assets/habiba-velora-hero-dark.jpg' },
+        ];
+
+    return items.slice(0, 10).map((item, index) => {
+      const tone = getTone(item.product?.tone ?? index);
+      const productName = normalizeText(item.product?.name, 'HabibaVelora');
+      return {
+        id: `${normalizeText(item.product?.id, 'hero')}-${index}`,
+        productName,
+        image: item.image,
+        sideImages: items
+          .map((sideItem) => sideItem.image)
+          .filter((image) => image && image !== item.image)
+          .slice(0, 2),
+        tone,
+      };
+    });
+  }
+
+  function updateDynamicHeroCopy(hero, items, nextIndex) {
+    const item = items[nextIndex];
+    if (!item) {
+      return;
+    }
+
+    dynamicHeroState.activeIndex = nextIndex;
+    hero.style.setProperty('--hero-tone-from', item.tone.from);
+    hero.style.setProperty('--hero-tone-to', item.tone.to);
+    hero.style.setProperty('--hero-tone-glow', item.tone.glow);
+    hero.style.setProperty('--hero-active-index', nextIndex);
+
+    hero.querySelectorAll('[data-hero-panel]').forEach((panel, index) => {
+      panel.classList.toggle('active', index === nextIndex);
+      panel.setAttribute('aria-hidden', index === nextIndex ? 'false' : 'true');
+    });
+    hero.querySelectorAll('[data-hero-dot]').forEach((button, index) => {
+      const active = index === nextIndex;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  }
+
+  function renderDynamicHero() {
+    const hero = document.querySelector('.hero-showcase');
+    const slides = hero?.querySelector('.hero-slides');
+    const overlay = hero?.querySelector('.hero-overlay');
+    if (!hero || !slides || !overlay || document.body?.dataset.page !== 'home') {
+      return;
+    }
+
+    const items = buildDynamicHeroItems();
+    if (!items.length) {
+      return;
+    }
+
+    const signature = items.map((item) => `${item.id}:${item.image}:${item.productName}`).join('|');
+    if (dynamicHeroState.signature === signature && hero.classList.contains('dynamic-category-hero')) {
+      updateDynamicHeroCopy(hero, items, Math.min(dynamicHeroState.activeIndex, items.length - 1));
+      return;
+    }
+
+    dynamicHeroState.signature = signature;
+    dynamicHeroState.activeIndex = 0;
+    hero.classList.add('dynamic-category-hero');
+    hero.classList.add('dynamic-product-hero');
+    hero.dataset.heroItems = String(items.length);
+
+    slides.innerHTML = items.map((item, index) => `
+        <article class="hero-slide dynamic-hero-slide${index === 0 ? ' active' : ''}" data-hero-panel aria-hidden="${index === 0 ? 'false' : 'true'}">
+          <span class="dynamic-hero-bg">
+            <img src="${escapeHtml(item.image)}" alt="" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index === 0 ? 'high' : 'auto'}" />
+          </span>
+          <span class="dynamic-hero-word" aria-hidden="true">HABIBAVELORA</span>
+          <span class="dynamic-hero-product">
+            <img class="dynamic-hero-main-img" src="${escapeHtml(item.image)}" alt="${escapeHtml(item.productName)}" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index === 0 ? 'high' : 'auto'}" />
+          </span>
+          <span class="dynamic-hero-side-products" aria-hidden="true">
+            ${(item.sideImages || []).map((image, imageIndex) => `
+              <img src="${escapeHtml(image)}" alt="" loading="lazy" decoding="async" style="--side-index:${imageIndex}" />
+            `).join('')}
+          </span>
+        </article>
+      `).join('');
+
+    overlay.innerHTML = `
+      <div class="dynamic-hero-image-controls" aria-label="صور المنتجات المتحركة">
+        <div class="dynamic-hero-arrows" aria-hidden="true">
+          <span>‹</span>
+          <span>›</span>
+        </div>
+        <a class="dynamic-hero-shop" href="#collection">Shop Now</a>
+        <div class="dynamic-hero-dots" aria-label="تبديل صور الواجهة">
+        ${items.map((item, index) => `
+          <button type="button" data-hero-dot="${index}" aria-label="صورة ${index + 1}" aria-pressed="${index === 0 ? 'true' : 'false'}"></button>
+        `).join('')}
+        </div>
+      </div>
+    `;
+
+    overlay.querySelectorAll('[data-hero-dot]').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const nextIndex = Number(button.dataset.heroDot || 0);
+        updateDynamicHeroCopy(hero, items, nextIndex);
+      });
+    });
+
+    updateDynamicHeroCopy(hero, items, 0);
+
+    window.clearInterval(dynamicHeroState.timer);
+    dynamicHeroState.timer = window.setInterval(() => {
+      const nextIndex = (dynamicHeroState.activeIndex + 1) % items.length;
+      updateDynamicHeroCopy(hero, items, nextIndex);
+    }, 4200);
+  }
+
   function initHeroSlides() {
+    renderDynamicHero();
+
     const slides = Array.from(document.querySelectorAll('.hero-slide'));
-    if (slides.length < 2) {
+    if (document.querySelector('.hero-showcase.dynamic-category-hero') || slides.length < 2) {
       return;
     }
 
@@ -1599,22 +2057,19 @@
       return;
     }
 
-    const buttons = Array.from(elements.categoryFilters.querySelectorAll('[data-category]'));
-    buttons.forEach((button) => {
-      const isActive = button.dataset.category === state.filters.category;
-      button.classList.toggle('active', isActive);
-      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-    });
-  }
-
-  function renderCatalogViewModes() {
-    const buttons = Array.from(document.querySelectorAll('[data-view-mode]'));
-    if (!buttons.length) {
-      return;
+    if (state.filters.category !== 'all' && !state.products.some((product) => product.category === state.filters.category)) {
+      state.filters.category = 'all';
+      state.filters.showcaseOnly = true;
     }
 
+    const buttons = Array.from(elements.categoryFilters.querySelectorAll('[data-category]'));
     buttons.forEach((button) => {
-      const isActive = button.dataset.viewMode === state.filters.viewMode;
+      const category = canonicalCategory(button.dataset.category || 'all', 'all');
+      const hasProducts = category === 'all' || state.products.some((product) => product.category === category);
+      button.dataset.category = category;
+      button.hidden = !hasProducts;
+
+      const isActive = category === state.filters.category;
       button.classList.toggle('active', isActive);
       button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
@@ -1645,28 +2100,6 @@
 
   function sortProducts(products) {
     const list = Array.isArray(products) ? products.slice() : [];
-    const mode = state.filters.viewMode || 'featured';
-
-    if (mode === 'bestsellers') {
-      return list.sort((left, right) => {
-        const reviewDiff = toNumber(right.reviewCount, 0) - toNumber(left.reviewCount, 0);
-        const ratingDiff = toNumber(right.rating, 0) - toNumber(left.rating, 0);
-        const discountDiff = toNumber(right.discount, 0) - toNumber(left.discount, 0);
-        return reviewDiff || ratingDiff || discountDiff || String(left.name || '').localeCompare(String(right.name || ''), 'ar');
-      });
-    }
-
-    if (mode === 'new') {
-      return list.sort((left, right) => {
-        const leftIsNew = String(left.badge || '').includes('جديد') ? 1 : 0;
-        const rightIsNew = String(right.badge || '').includes('جديد') ? 1 : 0;
-        const newDiff = rightIsNew - leftIsNew;
-        const ratingDiff = toNumber(right.rating, 0) - toNumber(left.rating, 0);
-        const reviewDiff = toNumber(right.reviewCount, 0) - toNumber(left.reviewCount, 0);
-        return newDiff || ratingDiff || reviewDiff || String(left.name || '').localeCompare(String(right.name || ''), 'ar');
-      });
-    }
-
     return list.sort((left, right) => {
       const scoreDiff = getProductFeaturedScore(right) - getProductFeaturedScore(left);
       return scoreDiff || String(left.name || '').localeCompare(String(right.name || ''), 'ar');
@@ -1696,28 +2129,53 @@
     return sortProducts(filtered);
   }
 
-  function getCategoryItems() {
+  function getCategoryItems(options = {}) {
     if (!elements.categoryFilters) {
       return [];
     }
 
-    return Array.from(elements.categoryFilters.querySelectorAll('[data-category]'))
+    const includeAll = Boolean(options.includeAll);
+    const includeProductCategories = Boolean(options.includeProductCategories);
+    const items = Array.from(elements.categoryFilters.querySelectorAll('[data-category]'))
       .map((button) => ({
-        value: button.dataset.category || 'all',
+        value: canonicalCategory(button.dataset.category || 'all', 'all'),
         title: normalizeText(button.querySelector('strong')?.textContent || button.dataset.category),
         description: normalizeText(button.querySelector('span')?.textContent || ''),
       }))
-      .filter((item) => item.value && item.value !== 'all');
+      .filter((item) => item.value && (includeAll || item.value !== 'all'));
+
+    if (includeProductCategories) {
+      state.products.forEach((product) => {
+        const category = canonicalCategory(product.category);
+        if (!category || category === 'all' || items.some((item) => item.value === category)) {
+          return;
+        }
+
+        items.push({
+          value: category,
+          title: category,
+          description: 'كل الموجود في القسم',
+        });
+      });
+    }
+
+    return items;
   }
 
   function shouldRenderCategoryShowcase() {
     return state.filters.category === 'all'
       && !state.filters.wishlistOnly
-      && !normalizeText(state.filters.query);
+      && !normalizeText(state.filters.query)
+      && state.filters.showcaseOnly;
   }
 
   function productsForCategory(category) {
-    return sortProducts(state.products.filter((product) => product.category === category));
+    const normalizedCategory = canonicalCategory(category, 'all');
+    if (normalizedCategory === 'all') {
+      return sortProducts(state.products);
+    }
+
+    return sortProducts(state.products.filter((product) => product.category === normalizedCategory));
   }
 
   function rotateProductsForCategory(products, category, limit = 2) {
@@ -1747,39 +2205,6 @@
     return [...products].sort(() => Math.random() - 0.5);
   }
 
-  function ensureCatalogViewModes() {
-    if (!elements.catalogTools || elements.catalogTools.querySelector('#catalogViewModes')) {
-      return;
-    }
-
-    const controls = document.createElement('div');
-    controls.id = 'catalogViewModes';
-    controls.className = 'catalog-view-switcher';
-    controls.innerHTML = `
-      <button type="button" class="filter-chip active" data-view-mode="featured" aria-pressed="true">الأبرز</button>
-      <button type="button" class="filter-chip" data-view-mode="bestsellers" aria-pressed="false">الأكثر مبيعًا</button>
-      <button type="button" class="filter-chip" data-view-mode="new" aria-pressed="false">الجديدة</button>
-    `;
-    elements.catalogTools.appendChild(controls);
-    renderCatalogViewModes();
-  }
-
-  function handleCatalogViewModeClick(event) {
-    const button = event.target.closest('[data-view-mode]');
-    if (!button) {
-      return;
-    }
-
-    const viewMode = button.dataset.viewMode || 'featured';
-    if (state.filters.viewMode === viewMode) {
-      return;
-    }
-
-    state.filters.viewMode = viewMode;
-    renderProducts();
-    renderCatalogViewModes();
-  }
-
   function ensureMobileBottomNav() {
     if (document.querySelector('.mobile-bottom-nav')) {
       return;
@@ -1801,10 +2226,10 @@
         <span class="mobile-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h7v7H4zM13 5h7v7h-7zM4 14h7v5H4zM13 14h7v5h-7z"/></svg></span>
         <small>الأقسام</small>
       </a>
-      <a href="/#collection" data-mobile-nav="products">
-        <span class="mobile-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 7h12l1 13H5L6 7zm3 0a3 3 0 0 1 6 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        <small>المنتجات</small>
-      </a>
+      <button id="mobileNavLanguageToggle" type="button" data-mobile-nav="language">
+        <span class="mobile-nav-icon" aria-hidden="true">EN</span>
+        <small>اللغة</small>
+      </button>
       <a href="/follow" data-mobile-nav="follow">
         <span class="mobile-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         <small>تابعينا</small>
@@ -1839,7 +2264,7 @@
 
       if (href === '/' && pathname === '/' && !hash) {
         active = true;
-      } else if (href === '/#categories' && pathname === '/' && hash === '#categories') {
+      } else if (href === '/#categories' && ((pathname === '/' && hash === '#categories') || pathname === '/category')) {
         active = true;
       } else if (href === '/#collection' && pathname === '/' && hash === '#collection') {
         active = true;
@@ -1865,12 +2290,15 @@
       return;
     }
 
+    applyRouteFilters();
+    renderCategoryPageHeader();
     if (shouldRenderCategoryShowcase()) {
       renderCategoryShowcase();
       return;
     }
 
     const visibleProducts = filterProducts();
+    renderCategoryPageHeader();
     elements.productGrid.className = 'product-grid';
     elements.productGrid.innerHTML = '';
 
@@ -1891,51 +2319,20 @@
     elements.productGrid.appendChild(fragment);
   }
 
-  function clearHomeFeatureTimers() {
-    state.homeFeatureTimers.forEach((timer) => window.clearInterval(timer));
-    state.homeFeatureTimers = [];
-  }
-
   function featureImagesForCategory(category) {
     return dedupeList((category?.products || [])
       .flatMap((product) => getProductGallery(product))
       .filter(Boolean));
   }
 
-  function startHomeFeatureRotation(card, images) {
-    if (!card || images.length < 2) {
-      return;
-    }
-
-    const primary = card.querySelector('.home-feature-media img.primary');
-    const hover = card.querySelector('.home-feature-media img.hover');
-    if (!primary || !hover) {
-      return;
-    }
-
-    let imageIndex = 0;
-    const timer = window.setInterval(() => {
-      imageIndex = (imageIndex + 1) % images.length;
-      const nextImage = images[imageIndex];
-      primary.classList.add('is-changing');
-      window.setTimeout(() => {
-        primary.src = nextImage;
-        hover.src = images[(imageIndex + 1) % images.length] || nextImage;
-        primary.classList.remove('is-changing');
-      }, 160);
-    }, 3000);
-    state.homeFeatureTimers.push(timer);
-  }
-
   function renderCategoryShowcase() {
-    const categories = getCategoryItems()
+    const categories = getCategoryItems({ includeProductCategories: true })
       .map((category) => ({
         ...category,
         products: productsForCategory(category.value),
       }))
       .filter((category) => category.products.length);
 
-    clearHomeFeatureTimers();
     elements.productGrid.className = 'category-showcase';
     elements.productGrid.innerHTML = '';
 
@@ -1993,9 +2390,8 @@
     const categoryImages = featureImagesForCategory(categoryOverride);
     const gallery = categoryImages.length ? categoryImages : getProductGallery(product);
     const primaryImage = gallery[0] || product.image;
-    const hoverImage = gallery[1] || product.hoverImage || primaryImage;
-    const category = normalizeText(product.category, 'all');
-    const categoryMeta = categoryOverride || getCategoryItems().find((item) => item.value === category);
+    const category = canonicalCategory(product.category, 'all');
+    const categoryMeta = categoryOverride || getCategoryItems({ includeProductCategories: true }).find((item) => item.value === category);
     const categoryTitle = categoryMeta?.title || category;
     const imagePriority = index < 2;
 
@@ -2009,18 +2405,15 @@
     card.innerHTML = `
       <button type="button" class="home-feature-link" data-action="view-category" data-category="${escapeHtml(category)}" aria-label="عرض قسم ${escapeHtml(categoryTitle)}">
         <span class="home-feature-media">
-          <img class="primary" src="${escapeHtml(primaryImage)}" alt="${escapeHtml(product.name)}" loading="${imagePriority ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${imagePriority ? 'high' : 'auto'}" />
-          <img class="hover" src="${escapeHtml(hoverImage)}" alt="" loading="lazy" decoding="async" fetchpriority="low" />
+          <img class="primary" src="${escapeHtml(primaryImage)}" alt="${escapeHtml(categoryTitle)}" loading="${imagePriority ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${imagePriority ? 'high' : 'auto'}" />
         </span>
         <span class="home-feature-content">
           <small>من قسم ${escapeHtml(categoryTitle)}</small>
-          <strong>${escapeHtml(product.name)}</strong>
+          <strong>${escapeHtml(categoryTitle)}</strong>
           <em>${escapeHtml(categoryMeta?.description || product.note || 'اختيار أنيق من المجموعة')}</em>
-          <span class="home-feature-cta">اكتشفي القسم</span>
         </span>
       </button>
     `;
-    startHomeFeatureRotation(card, gallery);
     return card;
   }
 
@@ -2035,13 +2428,11 @@
     const priceOptions = normalizePriceOptions(product.priceOptions);
     const price = formatProductCardPrice(product);
     const oldPrice = !priceOptions.length && product.compareAtPrice > product.price ? formatMoney(product.compareAtPrice) : '';
-    const categoryImages = featureImagesForCategory(categoryOverride);
-    const gallery = categoryImages.length ? categoryImages : getProductGallery(product);
+    const gallery = getProductGallery(product);
     const primaryImage = gallery[0] || product.image;
-    const hoverImage = gallery[1] || product.hoverImage || primaryImage;
     const rating = product.rating > 0 ? `${formatDecimal(product.rating, 1)}/5` : '';
     const pageUrl = buildProductPageUrl(product.id);
-    const imagePriority = index < 6;
+    const imagePriority = index < 4;
     const imageLoading = imagePriority ? 'eager' : 'lazy';
     const fetchPriority = imagePriority ? 'high' : 'auto';
 
@@ -2058,8 +2449,8 @@
         </button>
         <span class="product-badge ${escapeHtml(badge.className)}">${escapeHtml(badge.label)}</span>
         <span class="product-status ${stockClass}">${escapeHtml(stockLabel)}</span>
+        <a class="product-image-preview-trigger" href="${escapeHtml(pageUrl)}" data-action="view-details" aria-label="فتح صفحة ${escapeHtml(product.name)}"></a>
         <img class="product-image primary" src="${escapeHtml(primaryImage)}" alt="${escapeHtml(product.name)}" loading="${imageLoading}" decoding="async" fetchpriority="${fetchPriority}" />
-        <img class="product-image hover" src="${escapeHtml(hoverImage)}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async" fetchpriority="low" />
       </div>
       <div class="product-meta">
         <div class="product-meta-top">
@@ -2084,7 +2475,6 @@
         ${buildProductCardOptions(product)}
         <div class="product-actions">
           <button type="button" class="primary-btn" data-action="add-to-cart">أضف للسلة</button>
-          <button type="button" class="secondary-btn" data-action="quick-view">معاينة سريعة</button>
           <a class="secondary-btn" href="${escapeHtml(pageUrl)}" data-action="view-details">صفحة المنتج</a>
         </div>
       </div>
@@ -2113,34 +2503,174 @@
 
     const fragment = document.createDocumentFragment();
     state.cart.forEach((item) => {
-      const product = getProduct(item.productId);
-      if (!product) {
+      const line = createCartItemElement(item);
+      if (!line) {
         return;
       }
-      const line = document.createElement('article');
-      const variant = getProductVariantLabel(item.color, item.size, item.option);
-      const linePrice = cartLinePrice(item);
-      line.className = 'cart-item';
-      line.dataset.cartId = item.id;
-      line.innerHTML = `
-        <div class="cart-item-copy">
-          <strong>${escapeHtml(product.name)}</strong>
-          <p>${escapeHtml(product.category)} • ${escapeHtml(variant)}</p>
-          <small>${escapeHtml(formatMoney(linePrice))} للوحدة</small>
-        </div>
-        <div class="cart-quantity">
-          <button type="button" class="qty-btn" data-action="qty-decrease" aria-label="إنقاص">-</button>
-          <strong>${escapeHtml(formatCount(item.qty))}</strong>
-          <button type="button" class="qty-btn" data-action="qty-increase" aria-label="زيادة">+</button>
-        </div>
-        <button type="button" class="remove-link" data-action="cart-remove">حذف</button>
-      `;
       fragment.appendChild(line);
     });
 
     elements.cartList.innerHTML = '';
     elements.cartList.appendChild(fragment);
     updateCartCounter();
+  }
+
+  function ensureCartDrawer() {
+    if (elements.cartDrawer) {
+      return elements.cartDrawer;
+    }
+
+    const drawer = document.createElement('div');
+    drawer.className = 'cart-drawer-shell';
+    drawer.hidden = true;
+    drawer.setAttribute('aria-hidden', 'true');
+    drawer.innerHTML = `
+      <button type="button" class="cart-drawer-backdrop" data-action="close-cart-drawer" aria-label="إغلاق السلة"></button>
+      <aside class="cart-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle">
+        <div class="cart-drawer-head">
+          <div>
+            <p class="eyebrow">السلة</p>
+            <h2 id="cartDrawerTitle">مراجعة سريعة</h2>
+          </div>
+          <button type="button" class="icon-btn cart-drawer-close" data-action="close-cart-drawer" aria-label="إغلاق السلة">×</button>
+        </div>
+        <div class="cart-drawer-meta">
+          <span data-cart-drawer-count>0 عنصر</span>
+          <small>راجعي الطلب بسرعة قبل الدفع</small>
+        </div>
+        <div class="cart-drawer-list" data-cart-drawer-list></div>
+        <div class="cart-drawer-footer">
+          <div class="summary-line total">
+            <span>الإجمالي الفرعي</span>
+            <strong data-cart-drawer-total>0 ج.م</strong>
+          </div>
+          <div class="cart-drawer-actions">
+            <a class="primary-btn full" href="/cart">متابعة الدفع</a>
+            <button type="button" class="secondary-btn full" data-action="close-cart-drawer">متابعة التسوق</button>
+          </div>
+        </div>
+      </aside>
+    `;
+    drawer.addEventListener('click', handleCartDrawerClick);
+    document.body.appendChild(drawer);
+    elements.cartDrawer = drawer;
+    return drawer;
+  }
+
+  function renderCartDrawer() {
+    if (!elements.cartDrawer) {
+      return;
+    }
+
+    syncCartWithInventory();
+    const drawer = elements.cartDrawer;
+    const list = drawer.querySelector('[data-cart-drawer-list]');
+    const countLabel = drawer.querySelector('[data-cart-drawer-count]');
+    const totalLabel = drawer.querySelector('[data-cart-drawer-total]');
+    const checkoutLink = drawer.querySelector('.cart-drawer-actions .primary-btn');
+    const count = state.cart.reduce((sum, item) => sum + item.qty, 0);
+    const subtotal = cartSubtotal();
+
+    if (countLabel) {
+      countLabel.textContent = `${formatCount(count)} ${count === 1 ? 'عنصر' : 'عناصر'}`;
+    }
+    if (totalLabel) {
+      totalLabel.textContent = formatMoney(subtotal);
+    }
+
+    if (!list) {
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    state.cart.forEach((item) => {
+      const line = createCartItemElement(item, 'drawer-cart-item');
+      if (line) {
+        fragment.appendChild(line);
+      }
+    });
+
+    if (!fragment.childNodes.length) {
+      list.innerHTML = `
+        <div class="empty-state compact">
+          <strong>السلة فارغة</strong>
+          <p>اختاري منتج، والدرج هيفتح لك مراجعة سريعة هنا.</p>
+        </div>
+      `;
+      checkoutLink?.setAttribute('aria-disabled', 'true');
+      checkoutLink?.classList.add('disabled');
+      return;
+    }
+
+    list.innerHTML = '';
+    list.appendChild(fragment);
+    checkoutLink?.removeAttribute('aria-disabled');
+    checkoutLink?.classList.remove('disabled');
+  }
+
+  function openCartDrawer() {
+    if (document.body?.dataset.page === 'cart') {
+      return;
+    }
+
+    const drawer = ensureCartDrawer();
+    renderCartDrawer();
+    drawer.hidden = false;
+    drawer.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('cart-drawer-open');
+    requestAnimationFrame(() => {
+      drawer.classList.add('is-open');
+      drawer.querySelector('.cart-drawer-close')?.focus({ preventScroll: true });
+    });
+  }
+
+  function closeCartDrawer() {
+    const drawer = elements.cartDrawer;
+    if (!drawer) {
+      return;
+    }
+
+    drawer.classList.remove('is-open');
+    drawer.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('cart-drawer-open');
+    window.setTimeout(() => {
+      if (!drawer.classList.contains('is-open')) {
+        drawer.hidden = true;
+      }
+    }, 220);
+  }
+
+  function handleCartDrawerClick(event) {
+    const button = event.target.closest('[data-action]');
+    if (!button) {
+      return;
+    }
+
+    const action = button.dataset.action;
+    if (action === 'close-cart-drawer') {
+      closeCartDrawer();
+      return;
+    }
+
+    const cartRow = button.closest('[data-cart-id]');
+    const cartId = cartRow?.dataset?.cartId;
+    if (!cartId) {
+      return;
+    }
+
+    if (action === 'qty-increase') {
+      changeCartQty(cartId, 1);
+      return;
+    }
+
+    if (action === 'qty-decrease') {
+      changeCartQty(cartId, -1);
+      return;
+    }
+
+    if (action === 'cart-remove') {
+      removeCartItem(cartId);
+    }
   }
 
   function renderNotifications() {
@@ -2322,6 +2852,20 @@
       `).join('');
       const trackingUrl = `/order-tracking?q=${encodeURIComponent(order.id)}`;
       const printUrl = invoiceUrl(order);
+      const paymentReview = order.paymentStatus ? `
+        <div class="order-note payment-review-note">
+          <strong>بيانات الدفع</strong>
+          <p>الحالة: ${escapeHtml(paymentStatusLabel(order.paymentStatus))}</p>
+          ${order.paymentReference ? `<p>كود الدفع: <b dir="ltr">${escapeHtml(order.paymentReference)}</b></p>` : ''}
+          ${order.paymentGateway ? `<p>بوابة الدفع: <b>${escapeHtml(order.paymentGateway)}</b></p>` : ''}
+          ${order.paymentGatewayReference ? `<p>مرجع Paymob: <b dir="ltr">${escapeHtml(order.paymentGatewayReference)}</b></p>` : ''}
+          ${order.paymentGatewayTransactionId ? `<p>رقم عملية Paymob: <b dir="ltr">${escapeHtml(order.paymentGatewayTransactionId)}</b></p>` : ''}
+          ${order.paymentGatewayMessage ? `<p>رسالة Paymob: ${escapeHtml(order.paymentGatewayMessage)}</p>` : ''}
+          ${order.paymentPhone ? `<p>رقم التحويل إليه: <b dir="ltr">${escapeHtml(order.paymentPhone)}</b></p>` : ''}
+          ${order.paymentSenderPhone ? `<p>رقم العميل المحول منه: <b dir="ltr">${escapeHtml(order.paymentSenderPhone)}</b></p>` : ''}
+          ${order.paymentTransactionId ? `<p>رقم العملية/آخر 4 أرقام: <b dir="ltr">${escapeHtml(order.paymentTransactionId)}</b></p>` : ''}
+        </div>
+      ` : '';
 
       return `
         <article class="order-card" data-order-id="${escapeHtml(order.id)}">
@@ -2346,6 +2890,7 @@
               <p>${escapeHtml(order.note)}</p>
             </div>
           ` : ''}
+          ${paymentReview}
 
           <div class="order-progress">${progress}</div>
 
@@ -2436,6 +2981,7 @@
   function renderSummary() {
     updateSummary();
     updateCartCounter();
+    renderCartDrawer();
   }
 
   function addToCart(product, qty = 1, variant = {}, options = {}) {
@@ -2561,7 +3107,8 @@
   }
 
   function selectCategory(category) {
-    state.filters.category = category;
+    state.filters.category = canonicalCategory(category, 'all');
+    state.filters.showcaseOnly = false;
     renderCategoryButtons();
     renderProducts();
   }
@@ -2572,13 +3119,26 @@
     updateMobileBottomNavState();
   }
 
+  function showCategoryShowcase() {
+    state.filters.category = 'all';
+    state.filters.query = '';
+    state.filters.wishlistOnly = false;
+    state.filters.showcaseOnly = true;
+    if (elements.productSearch) {
+      elements.productSearch.value = '';
+    }
+    renderCategoryButtons();
+    updateWishlistToggle();
+    renderProducts();
+  }
+
   function renderAll() {
     setTheme(state.theme);
     setDashboardVisible(state.adminUnlocked);
     updateAdminPanelVisibility();
     updateWishlistToggle();
     renderCategoryButtons();
-    renderCatalogViewModes();
+    renderDynamicHero();
     renderProducts();
     renderCart();
     renderNotifications();
@@ -2602,6 +3162,11 @@
     const governorate = normalizeText(elements.customerGovernorate?.value);
     const area = normalizeText(elements.customerArea?.value);
     const payment = normalizeText(elements.paymentMethod?.value, 'عند الاستلام');
+    const gatewayPayment = isGatewayPayment(payment);
+    const vodafonePayment = isVodafoneCashPayment(payment);
+    const enteredPaymentReference = normalizeText(elements.paymentReferenceInput?.value);
+    const paymentSenderPhone = normalizeText(elements.paymentSenderPhone?.value);
+    const paymentTransactionId = normalizeText(elements.paymentTransactionId?.value);
     const note = normalizeText(elements.orderNote?.value);
 
     if (!customer || !phone || !address || !governorate || !area) {
@@ -2609,9 +3174,17 @@
       return;
     }
 
+    if (vodafonePayment && (!paymentSenderPhone || !paymentTransactionId)) {
+      showToast('بيانات الدفع ناقصة', 'اكتب رقم المحفظة اللي حولت منها ورقم عملية التحويل.', 'warning');
+      return;
+    }
+
     const nextNumber = nextOrderNumber(state.orders);
     const orderId = `VEL-${getOrderSequenceLabel(nextNumber)}`;
     const invoiceId = `INV-${getOrderSequenceLabel(nextNumber)}`;
+    const paymentReference = (gatewayPayment || vodafonePayment)
+      ? (enteredPaymentReference || createPaymentReference(orderId))
+      : '';
     const items = state.cart.map((item) => {
       const product = getProduct(item.productId);
       const price = cartLinePrice(item);
@@ -2643,6 +3216,12 @@
       area,
       fullAddress,
       payment,
+      paymentStatus: gatewayPayment ? 'pending_gateway' : (vodafonePayment ? 'pending_review' : (payment === 'عند الاستلام' ? 'cash_on_delivery' : 'not_required')),
+      paymentReference,
+      paymentPhone: vodafonePayment ? vodafoneCashNumber : '',
+      paymentSenderPhone,
+      paymentTransactionId,
+      paymentGateway: gatewayPayment ? 'paymob' : '',
       note,
       items,
       subtotal,
@@ -2661,6 +3240,38 @@
       ],
       inventoryState: 'reserved',
     });
+
+    let paymentCheckoutUrl = '';
+    const submitButton = event.submitter || elements.checkoutForm?.querySelector('button[type="submit"]');
+    const submitButtonText = submitButton?.textContent || '';
+    if (gatewayPayment) {
+      try {
+        if (submitButton) {
+          submitButton.disabled = true;
+          submitButton.textContent = 'جاري فتح بوابة الدفع...';
+        }
+        const paymentResponse = await fetch('/api/payment-intention', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order }),
+        });
+        const paymentPayload = await paymentResponse.json().catch(() => ({}));
+        if (!paymentResponse.ok || !paymentPayload.checkoutUrl) {
+          throw new Error(paymentPayload.message || 'payment gateway unavailable');
+        }
+        paymentCheckoutUrl = paymentPayload.checkoutUrl;
+        if (paymentPayload.order?.paymentGatewayReference) {
+          order.paymentGatewayReference = paymentPayload.order.paymentGatewayReference;
+        }
+      } catch (error) {
+        showToast('تعذر فتح بوابة الدفع', 'راجع إعدادات Paymob أو جرّب مرة أخرى بعد لحظات.', 'error');
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = submitButtonText;
+        }
+        return;
+      }
+    }
 
     const previousStocks = new Map(state.products.map((product) => [product.id, product.stock]));
 
@@ -2704,6 +3315,13 @@
     showToast('\u062a\u0645 \u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0637\u0644\u0628', `${order.id} \u062f\u062e\u0644 \u0627\u0644\u0646\u0638\u0627\u0645 \u0628\u0646\u062c\u0627\u062d.`, 'success');
     showOrderSuccess(order);
     addNotification('order', '\u0637\u0644\u0628 \u062c\u062f\u064a\u062f', `\u062a\u0645 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0637\u0644\u0628 ${order.id} \u0645\u0646 ${customer}.`);
+    if (paymentCheckoutUrl) {
+      await notifyTelegramOrder(order);
+      showToast('تحويل آمن للدفع', 'سيتم فتح صفحة Paymob الآن لإتمام الدفع.', 'info');
+      window.location.assign(paymentCheckoutUrl);
+      return;
+    }
+
     notifyTelegramOrder(order);
 
     state.products.forEach((product) => {
@@ -2862,7 +3480,10 @@
       await saveProductFromForm();
     } catch (error) {
       console.error('product-submit-failed', error);
-      showToast('\u062a\u0639\u0630\u0631 \u0625\u0636\u0627\u0641\u0629 \u0627\u0644\u0645\u0646\u062a\u062c', '\u062d\u0627\u0648\u0644 \u0628\u0635\u0648\u0631\u0629 \u0623\u0635\u063a\u0631 \u0623\u0648 \u0623\u0639\u062f \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0628\u0639\u062f \u062b\u0648\u0627\u0646\u064a.', 'error');
+      const message = error?.message === 'image-compression-failed'
+        ? 'في صورة تالفة أو ضخمة جدًا لم نقدر نضغطها. جرّب صورة JPG/PNG واضحة أو التقط Screenshot للصورة وأعد رفعها.'
+        : 'حاول بصورة أصغر أو أعد المحاولة بعد ثواني.';
+      showToast('\u062a\u0639\u0630\u0631 \u0625\u0636\u0627\u0641\u0629 \u0627\u0644\u0645\u0646\u062a\u062c', message, 'error');
     } finally {
       if (submitButton) {
         submitButton.disabled = false;
@@ -2873,7 +3494,7 @@
 
   async function saveProductFromForm() {
     const name = normalizeText(elements.productName?.value);
-    const category = normalizeText(elements.productCategory?.value, 'حلقان');
+    const category = canonicalCategory(elements.productCategory?.value, 'حلقان');
     const badge = normalizeText(elements.productBadge?.value, 'مميز');
     const featured = Boolean(elements.productFeatured?.checked);
     const note = normalizeText(elements.productNote?.value, '');
@@ -3004,69 +3625,6 @@
     addNotification('system', 'حذف منتج', `تم حذف المنتج ${product.name}.`);
     showToast('تم الحذف', product.name, 'warning');
   }
-
-
-  function ensureQuickViewModal() {
-    if (elements.quickViewModal) return elements.quickViewModal;
-    const modal = document.createElement('div');
-    modal.className = 'quick-view-modal';
-    modal.hidden = true;
-    modal.innerHTML = '<div class="quick-view-backdrop" data-action="close-quick-view"></div><article class="quick-view-card" role="dialog" aria-modal="true"></article>';
-    document.body.appendChild(modal);
-    elements.quickViewModal = modal;
-    modal.addEventListener('click', (event) => {
-      const close = event.target.closest('[data-action="close-quick-view"]');
-      const add = event.target.closest('[data-action="quick-add-cart"]');
-      if (close) closeQuickView();
-      if (add) {
-        const product = getProduct(add.dataset.productId);
-        addToCart(product, 1, getDefaultVariant(product), { openProductPage: true });
-        closeQuickView();
-      }
-    });
-    return modal;
-  }
-
-  function closeQuickView() {
-    if (!elements.quickViewModal) return;
-    elements.quickViewModal.hidden = true;
-    document.body.classList.remove('modal-open');
-  }
-
-  function openQuickView(product) {
-    const modal = ensureQuickViewModal();
-    const card = modal.querySelector('.quick-view-card');
-    const image = imageSource(product);
-    const badge = smartBadge(product);
-    const discount = calculateDiscount(product);
-    const priceOptions = normalizePriceOptions(product.priceOptions);
-    card.innerHTML = `
-      <button type="button" class="quick-view-close" data-action="close-quick-view" aria-label="\u0625\u063a\u0644\u0627\u0642">\u00d7</button>
-      <img class="quick-view-image" src="${escapeHtml(image)}" alt="${escapeHtml(product.name)}" loading="eager" decoding="async" />
-      <div class="quick-view-copy">
-        <div class="product-modal-badges">
-          <span class="product-badge ${escapeHtml(badge.className)}">${escapeHtml(badge.label)}</span>
-          <span class="stock-pill ${escapeHtml(availabilityClass(product.stock))}">${escapeHtml(availabilityLabel(product.stock))}</span>
-        </div>
-        <p class="product-category">${escapeHtml(product.category)}</p>
-        <h3>${escapeHtml(product.name)}</h3>
-        <p class="modal-muted">${escapeHtml(product.note || product.details)}</p>
-        <div class="product-modal-price">
-          <strong class="product-price">${escapeHtml(formatProductCardPrice(product))}</strong>
-          ${product.compareAtPrice > product.price ? `<del class="product-old-price">${escapeHtml(formatMoney(product.compareAtPrice))}</del>` : ''}
-          ${discount ? `<span class="discount-pill">\u062e\u0635\u0645 ${escapeHtml(formatCount(discount))}%</span>` : ''}
-        </div>
-        ${priceOptions.length ? `<div class="quick-view-options">${priceOptions.slice(0, 3).map((option) => `<span>${escapeHtml(option.label)} · ${escapeHtml(formatMoney(option.price))}</span>`).join('')}</div>` : ''}
-        <div class="product-modal-actions">
-          <button type="button" class="primary-btn" data-action="quick-add-cart" data-product-id="${escapeHtml(product.id)}">${priceOptions.length > 1 ? 'اختار النوع' : '\u0623\u0636\u0641 \u0644\u0644\u0633\u0644\u0629'}</button>
-          <a class="secondary-btn" href="${escapeHtml(buildProductPageUrl(product.id))}">\u0635\u0641\u062d\u0629 \u0627\u0644\u0645\u0646\u062a\u062c</a>
-        </div>
-      </div>
-    `;
-    modal.hidden = false;
-    document.body.classList.add('modal-open');
-  }
-
   function handleProductGridClick(event) {
     const actionButton = event.target.closest('[data-action]');
     if (!actionButton) {
@@ -3075,7 +3633,7 @@
 
     if (actionButton.dataset.action === 'view-category') {
       event.preventDefault();
-      openCategoryProducts(actionButton.dataset.category || 'all');
+      window.location.href = buildCategoryPageUrl(actionButton.dataset.category || 'all');
       return;
     }
 
@@ -3100,12 +3658,6 @@
         sourceElement: card,
         openProductPage: false,
       });
-      return;
-    }
-
-    if (action === 'quick-view') {
-      event.preventDefault();
-      openQuickView(product);
       return;
     }
 
@@ -3213,12 +3765,18 @@
 
   function handleCategoryClick(event) {
     const button = event.target.closest('[data-category]');
-    if (!button) {
+    if (!button || button.hidden) {
       return;
     }
 
-    const category = button.dataset.category || 'all';
-    openCategoryProducts(category);
+    const category = canonicalCategory(button.dataset.category || 'all', 'all');
+    if (category === 'all') {
+      showCategoryShowcase();
+      document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
+    window.location.href = buildCategoryPageUrl(category);
   }
 
   function handleStorageSync() {
@@ -3248,6 +3806,53 @@
     }
   }
 
+  function setupHeaderSearch() {
+    if (!elements.productSearch) {
+      return;
+    }
+
+    const topActions = document.querySelector('.top-actions');
+    if (!topActions || elements.productSearch.closest('.topbar-search-field')) {
+      return;
+    }
+
+    const originalField = elements.productSearch.closest('.search-field');
+    const originalTools = elements.productSearch.closest('.catalog-tools');
+    const headerSearch = document.createElement('label');
+    headerSearch.className = 'topbar-search-field';
+    headerSearch.innerHTML = '<span class="sr-only">بحث المنتجات</span>';
+    elements.productSearch.placeholder = 'بحث...';
+    headerSearch.appendChild(elements.productSearch);
+
+    const insertBefore = elements.searchButton || elements.cartJump || topActions.firstElementChild;
+    if (insertBefore) {
+      topActions.insertBefore(headerSearch, insertBefore);
+    } else {
+      topActions.appendChild(headerSearch);
+    }
+
+    originalField?.remove();
+    if (originalTools && !originalTools.querySelector('input, select, button, textarea')) {
+      originalTools.classList.add('catalog-tools-relocated');
+    }
+
+    if (elements.searchButton) {
+      elements.searchButton.hidden = true;
+      elements.searchButton.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  function openCategoryShowcaseFromLink(event) {
+    const isHome = window.location.pathname === '/';
+    if (!isHome) {
+      return;
+    }
+
+    event.preventDefault();
+    showCategoryShowcase();
+    document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   function bindEvents() {
     elements.searchButton?.addEventListener('click', () => {
       elements.productSearch?.focus();
@@ -3259,6 +3864,14 @@
       setTheme(state.theme === 'dark' ? 'light' : 'dark');
     });
 
+    elements.cartJump?.addEventListener('click', (event) => {
+      if (document.body?.dataset.page === 'cart') {
+        return;
+      }
+      event.preventDefault();
+      openCartDrawer();
+    });
+
     elements.brand?.addEventListener('click', handleBrandShortcut);
     document.querySelector('.hero-showcase')?.addEventListener('click', handleHeroAdminShortcut);
 
@@ -3267,8 +3880,15 @@
       renderProducts();
     });
 
+    document.querySelectorAll('a[href="#collection"]').forEach((link) => {
+      link.addEventListener('click', showCategoryShowcase);
+    });
+
+    document.querySelectorAll('a[href="#categories"], a[href="/#categories"]').forEach((link) => {
+      link.addEventListener('click', openCategoryShowcaseFromLink);
+    });
+
     elements.categoryFilters?.addEventListener('click', handleCategoryClick);
-    elements.catalogTools?.addEventListener('click', handleCatalogViewModeClick);
     elements.productGrid?.addEventListener('click', handleProductGridClick);
     elements.productGrid?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
@@ -3285,6 +3905,7 @@
     elements.clearNotificationsButton?.addEventListener('click', clearNotifications);
 
     elements.checkoutForm?.addEventListener('submit', handleCheckout);
+    elements.paymentMethod?.addEventListener('change', updatePaymentProofFields);
     elements.customerGovernorate?.addEventListener('change', (event) => {
       populateAreaSelect(event.target.value);
     });
@@ -3338,8 +3959,15 @@
 
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
+        closeCartDrawer();
         closeAdminGate();
-        closeQuickView();
+        closeProductImagePreview();
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      if (event.target.closest('[data-action="close-image-preview"]')) {
+        closeProductImagePreview();
       }
     });
 
@@ -3363,13 +3991,16 @@
       state.wishlist = filteredWishlist;
     }
 
+    setupHeaderSearch();
     bindEvents();
     renderPriceOptionRows([]);
     initHeroSlides();
     ensureClearNotificationsButton();
     populateGovernorateSelect();
-    ensureCatalogViewModes();
     ensureMobileBottomNav();
+    ensurePaymentProofFields();
+    updatePaymentProofFields();
+    applyRouteFilters();
     renderAll();
     setTheme(state.theme);
     setDashboardVisible(state.adminUnlocked);
@@ -3388,8 +4019,10 @@
       renderDashboard();
     }
 
-    syncProductsFromDatabase();
-    syncOrdersFromDatabase();
+    if (document.body?.dataset.page === 'admin') {
+      syncProductsFromDatabase();
+      syncOrdersFromDatabase();
+    }
   }
 
   function renderDashboard() {

@@ -77,7 +77,7 @@ window.veloraStore = {
   governorates: egyptGovernorates,
   governorateAreas,
   shippingFees,
-  paymentMethods: ['عند الاستلام', 'فودافون كاش', 'إنستاباي'],
+  paymentMethods: ['عند الاستلام', 'فودافون كاش', 'فيزا / ماستر كارد'],
   tonePalette,
 };
 
@@ -115,11 +115,81 @@ function ensureVeloraGovernorates() {
   );
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', ensureVeloraGovernorates);
-} else {
-  ensureVeloraGovernorates();
+function normalizeVeloraNavHref(value) {
+  const raw = String(value || '').trim();
+  if (!raw) {
+    return '';
+  }
+
+  try {
+    const url = new URL(raw, window.location.origin);
+    return `${url.pathname}${url.hash}`.replace(/\/$/, '') || '/';
+  } catch {
+    return raw.replace(/\/$/, '') || '/';
+  }
 }
 
-window.setTimeout(ensureVeloraGovernorates, 500);
-window.setTimeout(ensureVeloraGovernorates, 1500);
+function findVeloraNavLink(nav, targets) {
+  const targetSet = new Set(targets.map((target) => normalizeVeloraNavHref(target)));
+  return Array.from(nav.querySelectorAll('a')).find((link) => {
+    const href = normalizeVeloraNavHref(link.getAttribute('href') || link.href);
+    return targetSet.has(href);
+  }) || null;
+}
+
+function ensureVeloraNavLink(nav, href, label) {
+  const link = findVeloraNavLink(nav, [href]);
+  if (link) {
+    link.textContent = label;
+    return link;
+  }
+
+  const nextLink = document.createElement('a');
+  nextLink.href = href;
+  nextLink.textContent = label;
+  return nextLink;
+}
+
+function ensureVeloraTopNav() {
+  document.querySelectorAll('.topnav').forEach((nav) => {
+    const anchor = findVeloraNavLink(nav, ['#categories', '/#categories', '/']) || nav.firstElementChild;
+    const trackingLink = ensureVeloraNavLink(nav, '/order-tracking', 'متابعة الطلب');
+    const returnsLink = ensureVeloraNavLink(nav, '/after-sales', 'فاتورة المرتجع');
+
+    if (anchor) {
+      anchor.after(trackingLink);
+    } else {
+      nav.appendChild(trackingLink);
+    }
+    trackingLink.after(returnsLink);
+  });
+
+  const returnHeader = document.querySelector('.return-header');
+  if (returnHeader && !returnHeader.querySelector('.topnav')) {
+    const nav = document.createElement('nav');
+    nav.className = 'topnav return-header-nav';
+    nav.setAttribute('aria-label', 'التنقل الرئيسي');
+    nav.innerHTML = `
+      <a href="/">المتجر</a>
+      <a href="/#categories">الأقسام</a>
+      <a href="/order-tracking">متابعة الطلب</a>
+      <a href="/after-sales">فاتورة المرتجع</a>
+    `;
+    const backLink = returnHeader.querySelector('a.secondary-btn');
+    returnHeader.insertBefore(nav, backLink || null);
+  }
+}
+
+function ensureVeloraCommonUi() {
+  ensureVeloraGovernorates();
+  ensureVeloraTopNav();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', ensureVeloraCommonUi);
+} else {
+  ensureVeloraCommonUi();
+}
+
+window.setTimeout(ensureVeloraCommonUi, 500);
+window.setTimeout(ensureVeloraCommonUi, 1500);

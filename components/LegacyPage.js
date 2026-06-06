@@ -10,6 +10,12 @@ export default function LegacyPage({
   initialProducts = [],
 }) {
   const initialStoreScript = `window.veloraInitialProducts=${JSON.stringify(initialProducts).replace(/</g, '\\u003c')};`;
+  const preloadImages = [...new Set(
+    initialProducts
+      .flatMap((product) => [product?.image, product?.hoverImage, ...(Array.isArray(product?.gallery) ? product.gallery : [])])
+      .filter(Boolean)
+      .slice(0, 4),
+  )];
 
   return (
     <>
@@ -23,6 +29,9 @@ export default function LegacyPage({
         <meta name="description" content={description} />
         <meta name="ga-id" content="" />
         <meta name="facebook-pixel-id" content="" />
+        {preloadImages.map((src) => (
+          <link key={src} rel="preload" as="image" href={src} fetchPriority="high" />
+        ))}
         {extraHead}
       </Head>
 
@@ -31,6 +40,8 @@ export default function LegacyPage({
       <Script id="velora-initial-products" strategy="beforeInteractive">
         {initialStoreScript}
       </Script>
+
+      <Script src="/language.js" strategy="beforeInteractive" />
 
       {scripts.map((src) => (
         <Script
