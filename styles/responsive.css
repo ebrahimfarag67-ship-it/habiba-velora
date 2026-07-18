@@ -220,6 +220,10 @@
     padding-inline: 12px;
   }
 
+  .home-hero-interface-image {
+    object-position: 42% center;
+  }
+
   .home-hero-image-static .home-hero-title-wrap {
     top: 46%;
   }
@@ -441,7 +445,7 @@
   }
 
   .reference-projects-section {
-    padding: 72px 14px 70px;
+    padding: 54px 14px 58px;
   }
 
   .reference-project-stack {
@@ -496,7 +500,8 @@
   }
 
   .reference-category-media img {
-    min-height: 280px;
+    height: 210px;
+    min-height: 0;
     border-radius: 28px;
   }
 

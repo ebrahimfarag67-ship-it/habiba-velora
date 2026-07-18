@@ -397,7 +397,7 @@ function FooterSocialIcon({ type }) {
 }
 
 const HERO_TITLE = 'Habiba Velora';
-const REFERENCE_HERO_IMAGE = '/api/product-image?path=products%2F1780175302885-xu1ai4zdzs.png';
+const REFERENCE_HERO_IMAGE = '/assets/habiba-velora-interface-hero.png';
 const FALLBACK_CATEGORY_CARDS = [
   {
     name: 'سلاسل',
@@ -548,6 +548,14 @@ function HomeHeroImage({
       aria-labelledby="veloraHeroTitle"
       data-no-translate
     >
+      <img
+        className="home-hero-interface-image"
+        src={REFERENCE_HERO_IMAGE}
+        alt=""
+        loading="eager"
+        decoding="async"
+        fetchPriority="high"
+      />
       <header className="clean-header clean-home-header">
         <nav className="clean-nav" aria-label="Reference hero navigation">
           <a href="#brand-story">قصتي</a>
@@ -557,9 +565,7 @@ function HomeHeroImage({
         </nav>
       </header>
 
-      <div className="home-hero-title-wrap">
-        <SplitHeroTitle />
-      </div>
+      <h1 id="veloraHeroTitle" className="home-hero-seo-title">Habiba Velora</h1>
 
       <div className="home-hero-bottom-bar">
         <p className="home-hero-copy">
@@ -1003,11 +1009,9 @@ export default function HomePage({ initialProducts = [] }) {
             onCollectionJump={handleCollectionJump}
           />
 
-          <MotionMarqueeSection items={categoryCards} />
+          <ReferenceProjectsSection items={categoryCards} />
 
           <ReferenceAboutSection />
-
-          <ReferenceProjectsSection items={categoryCards} />
 
           <ReferenceJourneySection onCollectionJump={handleCollectionJump} />
 

@@ -616,7 +616,44 @@ body[data-page="home"] .home-hero-image {
 
 body[data-page="home"] .home-hero-image::before,
 body[data-page="home"] .home-hero-image::after {
-  display: none;
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  pointer-events: none;
+}
+
+body[data-page="home"] .home-hero-image::before {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.34) 0%, transparent 24%, transparent 72%, rgba(0, 0, 0, 0.62) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.28), transparent 34%, rgba(0, 0, 0, 0.18));
+}
+
+body[data-page="home"] .home-hero-image::after {
+  inset: auto 0 0;
+  height: 26%;
+  background: linear-gradient(180deg, transparent, #0c0c0c 86%);
+}
+
+.home-hero-interface-image {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  filter: saturate(1.02) contrast(1.02);
+}
+
+.home-hero-seo-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 body[data-page="home"] .clean-home-header {
@@ -1306,9 +1343,14 @@ body[data-page="home"] .velora-footer-inner {
 
 .reference-projects-section {
   z-index: 3;
-  margin-top: clamp(-56px, -4vw, -40px);
-  padding: clamp(84px, 11vw, 150px) clamp(18px, 4vw, 48px) clamp(80px, 10vw, 130px);
-  border-radius: clamp(40px, 5vw, 60px) clamp(40px, 5vw, 60px) 0 0;
+  margin-top: 0;
+  padding: clamp(48px, 7vw, 86px) clamp(18px, 4vw, 48px) clamp(54px, 7vw, 92px);
+  border-top: 1px solid rgba(215, 226, 234, 0.12);
+  border-bottom: 1px solid rgba(215, 226, 234, 0.1);
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 206, 128, 0.08), transparent 38%),
+    #0c0c0c;
 }
 
 .reference-category-title-row {
@@ -1354,10 +1396,10 @@ body[data-page="home"] .velora-footer-inner {
 
 .reference-project-stack {
   display: grid;
-  grid-auto-columns: clamp(280px, 30vw, 420px);
+  grid-auto-columns: clamp(240px, 23vw, 330px);
   grid-auto-flow: column;
   gap: clamp(12px, 1.6vw, 20px);
-  width: min(100% + 36px, 1280px);
+  width: min(100% + 36px, 1240px);
   margin: 0 auto;
   padding: 4px 18px 18px;
   overflow-x: auto;
@@ -1381,7 +1423,7 @@ body[data-page="home"] .velora-footer-inner {
 .reference-project-card {
   position: relative;
   top: auto;
-  min-height: clamp(430px, 48vw, 560px);
+  min-height: clamp(330px, 34vw, 430px);
   height: 100%;
   margin-bottom: 0;
   padding: clamp(14px, 2vw, 22px);
@@ -1488,7 +1530,7 @@ body[data-page="home"] .velora-footer-inner {
 
 .reference-category-media img {
   width: 100%;
-  height: clamp(230px, 25vw, 330px);
+  height: clamp(170px, 18vw, 240px);
   min-height: 0;
   object-fit: cover;
   border-radius: clamp(22px, 3vw, 30px);
@@ -1498,7 +1540,7 @@ body[data-page="home"] .velora-footer-inner {
   display: grid;
   align-content: end;
   gap: 10px;
-  min-height: 118px;
+  min-height: 96px;
   padding: 16px;
   border: 1px solid rgba(215, 226, 234, 0.18);
   border-radius: 24px;
