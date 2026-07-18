@@ -78,37 +78,6 @@ const SHIPPING_STEPS = [
   },
 ];
 
-const SHIPPING_NOTES = [
-  {
-    icon: 'wallet',
-    titleAr: 'تكلفة الشحن',
-    titleEn: 'Shipping cost',
-    copyAr: 'بتتحدد من شركة الشحن حسب المحافظة، وبتعرفها عند تأكيد الطلب.',
-    copyEn: 'Set by the courier by governorate and confirmed with your order.',
-  },
-  {
-    icon: 'clock',
-    titleAr: 'مدة التوصيل',
-    titleEn: 'Delivery time',
-    copyAr: 'من 2 إلى 5 أيام عمل بعد تسليم الطلب لشركة الشحن.',
-    copyEn: '2 to 5 business days after the courier receives the order.',
-  },
-  {
-    icon: 'map-pin',
-    titleAr: 'تتبع الشحنة',
-    titleEn: 'Tracking',
-    copyAr: 'رقم التتبع يوصلك بعد تسليم الطلب لشركة الشحن.',
-    copyEn: 'Tracking details are sent after the courier handoff.',
-  },
-  {
-    icon: 'shield',
-    titleAr: 'ملاحظة مهمة',
-    titleEn: 'Important note',
-    copyAr: 'راجعي العنوان والرقم؛ تأخير شركة الشحن خارج مسؤوليتنا.',
-    copyEn: 'Please check your address and phone number before confirming.',
-  },
-];
-
 const WHATSAPP_DIRECT_URL = 'https://wa.me/201024622437';
 const WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/GOOoB46pD9hAySEYNxSQO3?s=cl&p=a&mlu=2';
 const INSTAGRAM_URL = 'https://www.instagram.com/velora_accessories.17?igsh=ODUweTBnczNncjd3';
@@ -267,101 +236,6 @@ function buildCategoryCards(products) {
     .sort((first, second) => second.count - first.count || first.name.localeCompare(second.name, 'ar'));
 }
 
-function ProcessStepIcon({ type }) {
-  const icons = {
-    browse: (
-      <>
-        <path d="M13.8 21.8a8 8 0 1 1 5.7-2.35L26 25.9" />
-        <path d="M10.2 13.7a3.7 3.7 0 0 1 3.7-3.7" />
-        <path className="process-icon-spark" d="M23.4 5.7v3.2M21.8 7.3H25" />
-      </>
-    ),
-    bag: (
-      <>
-        <path d="M9.4 12.3h13.2l-1 13.4H10.4Z" />
-        <path d="M12.3 12.2V10a3.7 3.7 0 0 1 7.4 0v2.2" />
-        <path d="M13.1 17.2h5.8" />
-      </>
-    ),
-    form: (
-      <>
-        <path d="M10.5 6.7h11A2.5 2.5 0 0 1 24 9.2v15.6a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 8 24.8V9.2a2.5 2.5 0 0 1 2.5-2.5Z" />
-        <path d="M12.3 12.2h7.4M12.3 16.4h5.6" />
-        <path d="m13 22.2 2 2 4.5-5" />
-      </>
-    ),
-    route: (
-      <>
-        <path d="M9.3 8.4a3.3 3.3 0 0 1 6.6 0c0 2.6-3.3 6-3.3 6s-3.3-3.4-3.3-6Z" />
-        <path d="M19.2 22.8a3.3 3.3 0 0 1 6.6 0c0 2.6-3.3 5.9-3.3 5.9s-3.3-3.3-3.3-5.9Z" />
-        <path d="M12.7 14.8c-2.7.9-4.2 2.2-4 3.7.4 3.1 7.7 1.4 8.5 4.2.3 1.2-.7 2.2-2.8 3" />
-        <path className="process-icon-fill" d="M12.6 8.4h.1M22.5 22.8h.1" />
-      </>
-    ),
-    'badge-check': (
-      <>
-        <path d="M16 4.8 20 7l4.5.6.7 4.5 2.3 3.9-2.3 3.9-.7 4.5-4.5.6-4 2.2-4-2.2-4.5-.6-.7-4.5L4.5 16l2.3-3.9.7-4.5L12 7Z" />
-        <path d="m11.6 16.4 2.7 2.7 6.1-6.4" />
-      </>
-    ),
-    package: (
-      <>
-        <path d="M7.2 11.1 16 6.4l8.8 4.7v9.8L16 25.6l-8.8-4.7Z" />
-        <path d="M7.6 11.3 16 16l8.4-4.7M16 16v9.2" />
-        <path d="m11.9 8.9 8.4 4.7" />
-      </>
-    ),
-    truck: (
-      <>
-        <path d="M4.8 11.3h12.8v9.4H4.8Z" />
-        <path d="M17.6 14.2h4.4l3.8 4v2.5h-8.2" />
-        <path d="M8.6 24.1a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM23 24.1a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-        <path d="M2.7 14.6h4M1.6 17.6h5.1" />
-      </>
-    ),
-    'package-check': (
-      <>
-        <path d="M7.2 11.4 16 6.7l8.8 4.7v9.5L16 25.5l-8.8-4.6Z" />
-        <path d="M7.6 11.6 16 16.2l8.4-4.6M16 16.2v9" />
-        <path d="m18.5 21.2 2 2 4.3-4.8" />
-      </>
-    ),
-    wallet: (
-      <>
-        <path d="M7.2 9.4h15.2a2.8 2.8 0 0 1 2.8 2.8v10.6a2.8 2.8 0 0 1-2.8 2.8H7.2a2.8 2.8 0 0 1-2.8-2.8V12.2a2.8 2.8 0 0 1 2.8-2.8Z" />
-        <path d="M21 15.1h5.2v5.2H21a2.6 2.6 0 0 1 0-5.2Z" />
-        <path className="process-icon-fill" d="M22.2 17.7h.1" />
-      </>
-    ),
-    clock: (
-      <>
-        <circle cx="16" cy="16" r="10.2" />
-        <path d="M16 10.4v6.1l4.4 2.6" />
-        <path className="process-icon-spark" d="M7.2 7.2 5.6 5.6M24.8 7.2l1.6-1.6" />
-      </>
-    ),
-    'map-pin': (
-      <>
-        <path d="M16 4.8a7.1 7.1 0 0 1 7.1 7.1c0 5.4-7.1 14.5-7.1 14.5S8.9 17.3 8.9 11.9A7.1 7.1 0 0 1 16 4.8Z" />
-        <circle cx="16" cy="11.9" r="2.4" />
-        <path d="M8 25.5c1.8 1.2 4.6 1.9 8 1.9s6.2-.7 8-1.9" />
-      </>
-    ),
-    shield: (
-      <>
-        <path d="M16 4.8 25 8v7.3c0 5.8-3.6 9.9-9 12-5.4-2.1-9-6.2-9-12V8Z" />
-        <path d="m11.7 16 2.8 2.8 6-6.3" />
-      </>
-    ),
-  };
-
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" className={`process-svg process-svg-${type}`}>
-      {icons[type] || icons.browse}
-    </svg>
-  );
-}
-
 function FooterSocialIcon({ type }) {
   if (type === 'instagram') {
     return (
@@ -396,8 +270,7 @@ function FooterSocialIcon({ type }) {
   );
 }
 
-const HERO_TITLE = 'Habiba Velora';
-const REFERENCE_HERO_IMAGE = '/api/product-image?path=products%2F1780175302885-xu1ai4zdzs.png';
+const REFERENCE_HERO_IMAGE = '/assets/habiba-velora-hero.png';
 const FALLBACK_CATEGORY_CARDS = [
   {
     name: 'سلاسل',
@@ -430,75 +303,11 @@ const FALLBACK_CATEGORY_CARDS = [
     image: '/api/product-image?path=products%2F1780530255626-7itj27ex7sn.png',
   },
 ];
-const REFERENCE_SERVICES = [
-  ['01', 'أقسام حقيقية', 'كل قسم ظاهر في التصميم بيتغذى من منتجات المتجر نفسها، بصورة منتج حقيقية وعدد المنتجات المتاحة.'],
-  ['02', 'صور أوضح', 'الصور الكبيرة بتدي مساحة للقطعة إنها تظهر بشكل راق بدل كروت صغيرة مزدحمة.'],
-  ['03', 'تسوق أسرع', 'الشريط المتحرك يفتح القسم مباشرة، وكارت القسم الرئيسي ينقلك للمنتجات بدون لف كثير.'],
-  ['04', 'قصة البراند', 'علامة HV المتحركة أصبحت داخل جزء قصتي، في مكان أنسب وأقرب لهوية Habiba Velora.'],
-  ['05', 'واجهة أخف', 'التحميل الزائد اتشال، والبنية الحالية بتعرض المحتوى المهم أولًا مع حركة ناعمة ومضبوطة.'],
-];
-
-function SplitHeroTitle() {
-  return (
-    <h1 id="veloraHeroTitle" className="home-hero-title" aria-label="Habiba Velora">
-      <span className="home-hero-word" aria-hidden="true">
-        {Array.from(HERO_TITLE).map((letter, letterIndex) => (
-          <span
-            className={`home-hero-char${letter === ' ' ? ' is-space' : ''}`}
-            style={{ '--char-index': letterIndex }}
-            key={`${letter}-${letterIndex}`}
-          >
-            {letter === ' ' ? '\u00A0' : letter}
-          </span>
-        ))}
-      </span>
-    </h1>
-  );
-}
-
 function ContactButton({ href = '#collection', children, onClick }) {
   return (
     <a className="home-hero-contact-button" href={href} onClick={onClick}>
       <span>{children}</span>
     </a>
-  );
-}
-
-function Hero3DMark() {
-  return (
-    <div className="home-hero-3d-mark" aria-hidden="true" dir="ltr" lang="en">
-      <div className="velora-monogram-scene">
-        <div className="velora-monogram-glow" />
-        <div className="velora-silk-plane" />
-        <div className="velora-caustic-field" />
-        {MONOGRAM_PARTICLES.map((particle) => (
-          <span key={`hero-particle-${particle}`} className={`velora-particle p-${particle}`} />
-        ))}
-
-        <div className="velora-monogram-orbit">
-          <div className="velora-monogram-object">
-            <span className="velora-monogram-halo" />
-            <span className="velora-3d-ring velora-3d-ring-back" />
-            {MONOGRAM_LAYERS.map((layer) => (
-              <span
-                key={`hero-layer-${layer}`}
-                className="velora-monogram-layer"
-                style={{ '--layer': layer }}
-              >
-                HV
-              </span>
-            ))}
-            <span className="velora-monogram-core">HV</span>
-            <span className="velora-monogram-shine">HV</span>
-            <span className="velora-3d-ring velora-3d-ring-front" />
-            <span className="velora-ring-stone" />
-            {MONOGRAM_GEMS.map((gem) => (
-              <i key={`hero-gem-${gem}`} className={`velora-gem g-${gem}`} />
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -545,7 +354,7 @@ function HomeHeroImage({
   return (
     <section
       className="clean-section home-hero-image home-hero-image-static reveal"
-      aria-labelledby="veloraHeroTitle"
+      aria-label="Habiba Velora"
       data-no-translate
     >
       <header className="clean-header clean-home-header">
@@ -557,16 +366,15 @@ function HomeHeroImage({
         </nav>
       </header>
 
-      <div className="home-hero-title-wrap">
-        <SplitHeroTitle />
-      </div>
-
-      <div className="home-hero-bottom-bar">
-        <p className="home-hero-copy">
-          قطع مختارة بتفاصيل هادئة ولمعة تليق بكل لحظة.
-        </p>
-        <ContactButton href="#collection" onClick={onCollectionJump}>تسوقي الآن</ContactButton>
-      </div>
+      <a className="home-hero-image-link" href="#collection" onClick={onCollectionJump} aria-label="تسوقي مجموعة Habiba Velora">
+        <img
+          className="home-hero-art"
+          src={REFERENCE_HERO_IMAGE}
+          alt="Habiba Velora"
+          decoding="async"
+          fetchPriority="high"
+        />
+      </a>
 
       <a className="home-hero-admin-hotspot" href="/" onClick={onAdminShortcut} aria-label="Habiba Velora home">HV</a>
     </section>
@@ -697,25 +505,6 @@ function ReferenceJourneySection({ onCollectionJump }) {
         <a href={WHATSAPP_DIRECT_URL} target="_blank" rel="noreferrer">واتساب</a>
         <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer">إنستجرام</a>
       </nav>
-    </section>
-  );
-}
-
-function ReferenceServicesSection() {
-  return (
-    <section className="reference-services-section" aria-labelledby="referenceServicesTitle" data-no-translate>
-      <h2 id="referenceServicesTitle">تفاصيل سريعة</h2>
-      <div className="reference-services-list">
-        {REFERENCE_SERVICES.slice(0, 3).map(([number, title, copy], index) => (
-          <article className="reference-service-item" style={{ '--item-index': index }} key={number}>
-            <span className="reference-service-number">{number}</span>
-            <div>
-              <h3>{title}</h3>
-              <p>{copy}</p>
-            </div>
-          </article>
-        ))}
-      </div>
     </section>
   );
 }
@@ -932,177 +721,6 @@ export default function HomePage({ initialProducts = [] }) {
           <ReferenceProjectsSection items={categoryCards} />
 
           <ReferenceJourneySection onCollectionJump={handleCollectionJump} />
-
-          {false && (
-            <>
-          <section className="clean-section clean-process reveal legacy-process-section" aria-labelledby="veloraProcessTitle" data-no-translate>
-            <div className="clean-section-parallax clean-process-stage">
-              <div className="clean-process-head">
-                <p className="clean-process-kicker">
-                  <span className="lang-ar">رحلة الطلب</span>
-                  <span className="lang-en">Order flow</span>
-                </p>
-                <h2 id="veloraProcessTitle">
-                  <span className="lang-ar">اختاري. اطلبي. تابعي.</span>
-                  <span className="lang-en">Pick. Order. Track.</span>
-                </h2>
-                <p>
-                  <span className="lang-ar">ببساطة وأناقة.</span>
-                  <span className="lang-en">Simple and elegant.</span>
-                </p>
-              </div>
-
-              <div className="clean-process-track">
-                {PROCESS_STEPS.map((step, stepIndex) => (
-                  <article
-                    className="clean-process-step"
-                    key={step.number}
-                    tabIndex={0}
-                  >
-                    <span className="clean-process-number">{step.number}</span>
-                    <span className="clean-process-icon">
-                      <ProcessStepIcon type={step.icon} />
-                    </span>
-                    <span className="clean-process-title">
-                      <span className="lang-ar">{step.titleAr}</span>
-                      <span className="lang-en">{step.titleEn}</span>
-                    </span>
-                    <span className="clean-process-copy">
-                      <span className="lang-ar">{step.copyAr}</span>
-                      <span className="lang-en">{step.copyEn}</span>
-                    </span>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="clean-section clean-catalog reveal legacy-catalog-section" id="legacy-collection" aria-labelledby="collectionTitle">
-            <div className="clean-section-parallax clean-catalog-content">
-              <div className="clean-catalog-head" data-no-translate>
-                <p>
-                  <span className="lang-ar">مجموعة Habiba Velora</span>
-                  <span className="lang-en">Habiba Velora Collection</span>
-                </p>
-                <h2 id="collectionTitle">
-                  <span className="lang-ar">كل الأقسام</span>
-                  <span className="lang-en">All Collections</span>
-                </h2>
-              </div>
-              {categoryCards.length > 0 ? (
-                <div className="clean-category-grid">
-                  {categoryCards.map((category, index) => (
-                    <a
-                      key={category.name}
-                      className="clean-category-card"
-                      href={category.href}
-                      style={{ '--card-index': index }}
-                      >
-                        <div className="clean-category-media">
-                        {category.image ? (
-                          <img
-                            src={category.image}
-                            alt={category.name}
-                            loading={index < 4 ? 'eager' : 'lazy'}
-                            decoding="async"
-                            fetchPriority={index < 4 ? 'high' : 'auto'}
-                          />
-                        ) : (
-                          <div className="clean-category-placeholder" aria-hidden="true">HV</div>
-                        )}
-                        <span>{category.count} منتج</span>
-                      </div>
-                      <div className="clean-category-info">
-                        <small>قسم</small>
-                        <h3>{category.name}</h3>
-                        <strong>دخول القسم</strong>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <div className="clean-empty-state">
-                  <strong>الأقسام هتظهر هنا أول ما تضيف منتجات.</strong>
-                  <p>ضيف منتج وحدد القسم، والواجهة هتعرض كارت القسم تلقائيًا.</p>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="clean-section clean-shipping-policy reveal legacy-shipping-section" id="shipping-policy" aria-labelledby="shippingPolicyTitle" data-no-translate>
-            <div className="clean-section-parallax clean-shipping-stage">
-              <div className="clean-process-head clean-shipping-head">
-                <p className="clean-process-kicker">
-                  <span className="lang-ar">سياسة الشحن</span>
-                  <span className="lang-en">Shipping policy</span>
-                </p>
-                <h2 id="shippingPolicyTitle">
-                  <span className="lang-ar">من التجهيز لحد الاستلام.</span>
-                  <span className="lang-en">From packing to delivery.</span>
-                </h2>
-                <p>
-                  <span className="lang-ar">كل خطوة واضحة عشان طلبك يوصلك من غير لخبطة.</span>
-                  <span className="lang-en">A clear path so your order arrives without confusion.</span>
-                </p>
-              </div>
-
-              <div className="clean-shipping-alert">
-                <strong>
-                  <span className="lang-ar">تنبيه مهم</span>
-                  <span className="lang-en">Important</span>
-                </strong>
-                <span>
-                  <span className="lang-ar">أسعار الشحن بتحددها شركة الشحن حسب المحافظة، و Habiba Velora ليس لها دخل في التسعير.</span>
-                  <span className="lang-en">Shipping prices are set by the courier by governorate; Habiba Velora does not price shipping.</span>
-                </span>
-              </div>
-
-              <div className="clean-process-track clean-shipping-track">
-                {SHIPPING_STEPS.map((step) => (
-                  <article
-                    className="clean-process-step clean-shipping-step"
-                    key={`shipping-${step.number}`}
-                    tabIndex={0}
-                  >
-                    <span className="clean-process-number">{step.number}</span>
-                    <span className="clean-process-icon">
-                      <ProcessStepIcon type={step.icon} />
-                    </span>
-                    <span className="clean-process-title">
-                      <span className="lang-ar">{step.titleAr}</span>
-                      <span className="lang-en">{step.titleEn}</span>
-                    </span>
-                    <span className="clean-process-copy">
-                      <span className="lang-ar">{step.copyAr}</span>
-                      <span className="lang-en">{step.copyEn}</span>
-                    </span>
-                  </article>
-                ))}
-              </div>
-
-              <div className="clean-shipping-notes">
-                {SHIPPING_NOTES.map((note) => (
-                  <article className="clean-shipping-note" key={note.titleAr} tabIndex={0}>
-                    <span className="clean-shipping-note-icon" aria-hidden="true">
-                      <ProcessStepIcon type={note.icon} />
-                    </span>
-                    <strong>
-                      <span className="lang-ar">{note.titleAr}</span>
-                      <span className="lang-en">{note.titleEn}</span>
-                    </strong>
-                    <p>
-                      <span className="lang-ar">{note.copyAr}</span>
-                      <span className="lang-en">{note.copyEn}</span>
-                    </p>
-                  </article>
-                ))}
-              </div>
-
-              <p className="clean-shipping-signature">HABIBA VELORA ✦ SHIPPING POLICY</p>
-            </div>
-          </section>
-            </>
-          )}
         </main>
 
         <footer className="clean-footer velora-site-footer reveal" data-no-translate>
@@ -1163,45 +781,6 @@ export default function HomePage({ initialProducts = [] }) {
           </div>
         </footer>
 
-        {false && (
-        <nav className="clean-mobile-dock legacy-mobile-dock" aria-label="تنقل سريع">
-          <a href="/" data-mobile-nav="home" onClick={handleAdminShortcut}>
-            <span className="mobile-nav-icon" aria-hidden="true">
-              <span className="mobile-nav-logo-text">HV</span>
-            </span>
-            <small>الرئيسية</small>
-          </a>
-          <a className="active" href="#collection" data-mobile-nav="categories" onClick={handleCollectionJump}>
-            <span className="mobile-nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M4 5h7v7H4zM13 5h7v7h-7zM4 14h7v5H4zM13 14h7v5h-7z" />
-              </svg>
-            </span>
-            <small>الأقسام</small>
-          </a>
-          <a href="/order-tracking" data-mobile-nav="tracking">
-            <span className="mobile-nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M4 12h4l2-4 4 8 2-4h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <small>تتبع</small>
-          </a>
-          <a href="/cart" data-mobile-nav="cart" aria-label={`السلة بها ${cartCount} منتج`}>
-            <b>{cartCount}</b>
-            <small>السلة</small>
-          </a>
-          <a href="/after-sales" data-mobile-nav="returns">
-            <span className="mobile-nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M9 7 5 11l4 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M5 11h9.5a4.5 4.5 0 1 1 0 9H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <small>المرتجع</small>
-          </a>
-        </nav>
-        )}
       </div>
     </>
   );

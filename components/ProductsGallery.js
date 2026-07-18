@@ -429,7 +429,7 @@ export default function ProductsGallery({ products = [] }) {
                       <p className="card-category">{product.category}</p>
                     )}
                     {product.price && (
-                      <p className="card-price-inline">{product.price} ريال</p>
+                      <p className="card-price-inline">{product.price} ج.م</p>
                     )}
                   </div>
                 </a>

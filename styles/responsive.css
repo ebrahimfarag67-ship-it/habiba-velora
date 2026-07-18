@@ -44,21 +44,6 @@
     min-width: 0;
   }
 
-  .home-hero-content {
-    inset-inline-start: 28px;
-    bottom: clamp(82px, 12vh, 128px);
-    width: min(640px, calc(100% - 56px));
-  }
-
-  .home-hero-title {
-    font-size: clamp(3.4rem, 8.4vw, 7.2rem);
-  }
-
-  .home-hero-bottom-note {
-    left: 28px;
-    right: auto;
-  }
-
   .clean-header .clean-cart-link {
     min-height: 38px;
     padding-inline: 10px;
@@ -136,22 +121,33 @@
   body[data-page="home"] .clean-home-header {
     display: flex !important;
     top: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    padding: 24px 22px 0;
+    left: 12px;
+    right: 12px;
+    z-index: 40;
+    width: auto;
+    padding: 12px 12px 0;
     transform: none;
   }
 
   body[data-page="home"] .clean-home-header .clean-nav {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     width: 100%;
-    justify-content: space-between;
-    gap: 12px;
+    justify-content: stretch;
+    gap: 6px;
+    padding: 9px 10px;
+    border: 1px solid rgba(255, 232, 185, 0.18);
+    border-radius: 999px;
+    background: rgba(3, 1, 10, 0.34);
+    backdrop-filter: blur(14px);
   }
 
   body[data-page="home"] .clean-home-header .clean-nav a {
     padding: 0;
-    font-size: 0.82rem;
+    font-size: 0.72rem;
+    color: #fff5df;
+    text-align: center;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.72);
   }
 
   .home-hero-image,
@@ -160,104 +156,7 @@
   }
 
   .home-hero-art {
-    object-position: 62% center;
-  }
-
-  .home-hero-motion-glow.glow-one {
-    right: -34px;
-    top: 18vh;
-    width: 220px;
-    height: 220px;
-  }
-
-  .home-hero-motion-glow.glow-two,
-  .home-hero-jewel-orbit {
-    display: none;
-  }
-
-  .home-hero-image::before {
-    background:
-      linear-gradient(180deg, rgba(3, 1, 10, 0.34) 0%, rgba(3, 1, 10, 0.1) 28%, rgba(3, 1, 10, 0.36) 66%, rgba(3, 1, 10, 0.86) 100%),
-      linear-gradient(90deg, rgba(3, 1, 10, 0.66) 0%, rgba(3, 1, 10, 0.28) 50%, transparent 100%);
-  }
-
-  .home-hero-content {
-    inset-inline-start: 18px;
-    right: 18px;
-    bottom: 96px;
-    width: auto;
-    gap: 13px;
-  }
-
-  .home-hero-title {
-    font-size: clamp(3.35rem, 18vw, 5.85rem);
-    line-height: 0.82;
-  }
-
-  .home-hero-copy {
-    max-width: 320px;
-    font-size: 0.98rem;
-    line-height: 1.75;
-  }
-
-  .home-hero-actions {
-    gap: 9px;
-  }
-
-  .home-hero-primary,
-  .home-hero-secondary {
-    min-height: 40px;
-    padding: 10px 15px;
-    font-size: 0.86rem;
-  }
-
-  .home-hero-bottom-note {
-    display: none;
-  }
-
-  .home-hero-title-wrap {
-    top: 76px;
-    padding-inline: 12px;
-  }
-
-  .home-hero-image-static .home-hero-title-wrap {
-    top: 46%;
-  }
-
-  .home-hero-title {
-    font-size: clamp(2.65rem, 10vw, 4.8rem);
-    line-height: 0.92;
-  }
-
-  .home-hero-portrait-wrap {
-    top: 50%;
-    bottom: auto;
-    width: clamp(280px, 92vw, 380px);
-    min-height: clamp(300px, 90vw, 390px);
-    transform: translate3d(calc(-50% + (var(--hero-mx) * 18px)), -44%, 0);
-  }
-
-  .home-hero-3d-mark .velora-monogram-object {
-    width: clamp(230px, 72vw, 310px);
-  }
-
-  .home-hero-3d-mark .velora-monogram-layer,
-  .home-hero-3d-mark .velora-monogram-core,
-  .home-hero-3d-mark .velora-monogram-shine {
-    display: none;
-    font-size: clamp(7.3rem, 28vw, 10.8rem);
-  }
-
-  .home-hero-bottom-bar {
-    align-items: flex-end;
-    padding: 0 20px 104px;
-  }
-
-  .home-hero-copy {
-    width: 156px;
-    max-width: 42vw;
-    font-size: 0.76rem;
-    line-height: 1.14;
+    object-position: 73% center;
   }
 
   .home-hero-contact-button {
