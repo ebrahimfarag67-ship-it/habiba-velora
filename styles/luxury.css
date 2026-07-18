@@ -1,0 +1,1045 @@
+body[data-page="home"] {
+  background: #080706;
+}
+
+.lux-home {
+  --lux-bg: #080706;
+  --lux-panel: #11100e;
+  --lux-ink: #f7f0e4;
+  --lux-muted: rgba(247, 240, 228, 0.66);
+  --lux-soft: rgba(247, 240, 228, 0.1);
+  --lux-line: rgba(234, 212, 168, 0.2);
+  --lux-gold: #d7b56d;
+  --lux-deep-gold: #8f6b2f;
+  --lux-paper: #f4ead9;
+  min-height: 100vh;
+  overflow-x: clip;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(215, 181, 109, 0.16), transparent 32rem),
+    linear-gradient(180deg, #080706 0%, #0d0b09 46%, #090807 100%);
+  color: var(--lux-ink);
+  font-family: "Alexandria", "Cairo", sans-serif;
+}
+
+.lux-home * {
+  box-sizing: border-box;
+}
+
+.lux-home a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.lux-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: clamp(18px, 3vw, 44px);
+  min-height: 86px;
+  padding: 16px clamp(18px, 5vw, 82px);
+  border-bottom: 1px solid rgba(234, 212, 168, 0.14);
+  background: rgba(8, 7, 6, 0.82);
+  backdrop-filter: blur(18px);
+}
+
+.lux-brand,
+.lux-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  direction: ltr;
+  font-family: "Cormorant Garamond", serif;
+  font-size: clamp(1.75rem, 2.6vw, 2.65rem);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.lux-brand img,
+.lux-footer-brand img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.lux-navbar nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(14px, 2vw, 30px);
+  color: rgba(247, 240, 228, 0.78);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.lux-navbar nav a {
+  white-space: nowrap;
+  transition: color 180ms ease;
+}
+
+.lux-navbar nav a:hover {
+  color: var(--lux-gold);
+}
+
+.lux-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lux-cart-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(234, 212, 168, 0.24);
+  border-radius: 999px;
+  color: rgba(247, 240, 228, 0.88);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.lux-cart-link b {
+  display: grid;
+  min-width: 23px;
+  height: 23px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--lux-gold);
+  color: #090806;
+  font-size: 0.64rem;
+}
+
+.lux-menu-toggle {
+  display: none;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  gap: 6px;
+  border: 1px solid rgba(234, 212, 168, 0.28);
+  border-radius: 999px;
+  background: transparent;
+}
+
+.lux-menu-toggle i {
+  width: 18px;
+  height: 1px;
+  background: var(--lux-ink);
+}
+
+.lux-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
+  align-items: center;
+  gap: clamp(28px, 6vw, 90px);
+  min-height: calc(100svh - 86px);
+  padding: clamp(48px, 7vw, 100px) clamp(18px, 5vw, 82px) clamp(54px, 6vw, 92px);
+  overflow: hidden;
+}
+
+.lux-hero::before {
+  content: "";
+  position: absolute;
+  inset: auto -8% -22% -8%;
+  height: 42%;
+  background: linear-gradient(180deg, transparent, rgba(215, 181, 109, 0.08), transparent);
+  pointer-events: none;
+}
+
+.lux-hero-copy {
+  position: relative;
+  z-index: 2;
+  max-width: 720px;
+}
+
+.lux-hero-copy > p,
+.lux-section-title > p,
+.lux-editorial-copy > p,
+.lux-story article > p {
+  margin: 0 0 18px;
+  color: var(--lux-gold);
+  direction: ltr;
+  font-family: "Manrope", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.lux-hero h1,
+.lux-section-title h2,
+.lux-editorial h2,
+.lux-story h2 {
+  margin: 0;
+  color: var(--lux-ink);
+  font-family: "Cormorant Garamond", "Alexandria", serif;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.lux-hero h1 {
+  max-width: 640px;
+  font-size: clamp(4.4rem, 9.4vw, 9.6rem);
+  line-height: 0.88;
+}
+
+.lux-hero h1 span {
+  display: block;
+  margin-top: 16px;
+  color: rgba(247, 240, 228, 0.72);
+  font-family: "Alexandria", sans-serif;
+  font-size: clamp(1.8rem, 3.4vw, 3.8rem);
+  line-height: 1.16;
+}
+
+.lux-hero-copy strong {
+  display: block;
+  max-width: 560px;
+  margin-top: 28px;
+  color: var(--lux-muted);
+  font-size: clamp(0.95rem, 1.2vw, 1.16rem);
+  font-weight: 500;
+  line-height: 2;
+}
+
+.lux-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-top: 34px;
+}
+
+.lux-button {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 26px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.lux-button-gold {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: linear-gradient(135deg, #f5dd9e, #c7983d 55%, #7b531d);
+  color: #100d08;
+  box-shadow: 0 18px 58px rgba(199, 152, 61, 0.26);
+}
+
+.lux-button-dark {
+  background: #0b0907;
+  color: var(--lux-ink);
+}
+
+.lux-text-link,
+.lux-outline-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  border-bottom: 1px solid currentColor;
+  color: var(--lux-gold);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.lux-hero-showcase {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr minmax(120px, 0.42fr);
+  grid-template-rows: 1fr 1fr;
+  gap: 16px;
+  min-height: min(690px, 68vh);
+}
+
+.lux-hero-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(234, 212, 168, 0.22);
+  border-radius: 0;
+  background: #15110d;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
+}
+
+.lux-hero-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, 0.28));
+  pointer-events: none;
+}
+
+.lux-hero-card.is-main {
+  grid-row: 1 / 3;
+}
+
+.lux-hero-card img,
+.lux-product-media img,
+.lux-category-card img,
+.lux-promo-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lux-hero-card.is-main img {
+  object-position: center;
+}
+
+.lux-benefit-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: min(100% - 36px, 1500px);
+  margin: 0 auto;
+  border-block: 1px solid var(--lux-line);
+}
+
+.lux-benefit-strip article {
+  display: grid;
+  gap: 8px;
+  min-height: 118px;
+  align-content: center;
+  padding: 22px clamp(18px, 4vw, 54px);
+  border-inline-start: 1px solid var(--lux-line);
+}
+
+.lux-benefit-strip article:last-child {
+  border-inline-start: 0;
+}
+
+.lux-benefit-strip b {
+  color: var(--lux-ink);
+  font-size: 0.92rem;
+}
+
+.lux-benefit-strip span {
+  color: var(--lux-muted);
+  font-size: 0.76rem;
+  line-height: 1.8;
+}
+
+.lux-section {
+  width: min(100% - 36px, 1500px);
+  margin: 0 auto;
+  padding: clamp(82px, 10vw, 150px) 0;
+}
+
+.lux-title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 44px;
+}
+
+.lux-section-title {
+  max-width: 720px;
+}
+
+.lux-section-title h2 {
+  font-size: clamp(2.7rem, 5.6vw, 6.2rem);
+  line-height: 0.98;
+}
+
+.lux-section-title > span {
+  display: block;
+  max-width: 570px;
+  margin-top: 18px;
+  color: var(--lux-muted);
+  font-size: 0.86rem;
+  line-height: 1.9;
+}
+
+.lux-section-title.is-light h2,
+.lux-section-title.is-light > span {
+  color: var(--lux-ink);
+}
+
+.lux-rail-controls {
+  display: inline-flex;
+  gap: 10px;
+}
+
+.lux-rail-controls button {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid rgba(234, 212, 168, 0.28);
+  border-radius: 999px;
+  background: rgba(247, 240, 228, 0.04);
+  color: var(--lux-ink);
+  cursor: pointer;
+  font-size: 1.5rem;
+}
+
+.lux-category-rail {
+  display: grid;
+  grid-auto-columns: minmax(275px, 34%);
+  grid-auto-flow: column;
+  gap: 16px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  padding-bottom: 12px;
+}
+
+.lux-category-card {
+  position: relative;
+  min-height: clamp(420px, 43vw, 620px);
+  overflow: hidden;
+  scroll-snap-align: start;
+  background: #15110d;
+  border: 1px solid rgba(234, 212, 168, 0.16);
+}
+
+.lux-category-card img {
+  transition: transform 700ms ease;
+}
+
+.lux-category-card:hover img {
+  transform: scale(1.045);
+}
+
+.lux-category-card > i {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 35%, rgba(0, 0, 0, 0.82));
+}
+
+.lux-category-card > div {
+  position: absolute;
+  inset: auto 24px 24px;
+  display: grid;
+  gap: 8px;
+}
+
+.lux-category-card small,
+.lux-promo-card small {
+  color: var(--lux-gold);
+  font-family: "Manrope", sans-serif;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.lux-category-card h3 {
+  margin: 0;
+  font-family: "Cormorant Garamond", "Alexandria", serif;
+  font-size: clamp(2.1rem, 3.8vw, 4.4rem);
+  line-height: 1;
+}
+
+.lux-category-card span {
+  color: rgba(247, 240, 228, 0.7);
+  font-size: 0.78rem;
+}
+
+.lux-editorial {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.78fr) minmax(0, 1.22fr);
+  min-height: 760px;
+  background: var(--lux-paper);
+  color: #130f0b;
+}
+
+.lux-editorial-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(54px, 8vw, 126px);
+}
+
+.lux-editorial-copy > p {
+  color: var(--lux-deep-gold);
+}
+
+.lux-editorial h2 {
+  color: #130f0b;
+  font-size: clamp(3rem, 5.6vw, 6.5rem);
+  line-height: 0.96;
+}
+
+.lux-editorial-copy > span {
+  display: block;
+  max-width: 460px;
+  margin: 24px 0 34px;
+  color: rgba(19, 15, 11, 0.64);
+  font-size: 0.9rem;
+  line-height: 1.95;
+}
+
+.lux-promo-grid {
+  display: grid;
+  grid-template: 1fr 1fr / 1.05fr 0.95fr;
+  gap: 1px;
+  min-height: 100%;
+}
+
+.lux-promo-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 280px;
+  background: #15110d;
+  color: var(--lux-ink);
+}
+
+.lux-promo-card.promo-0 {
+  grid-row: 1 / 3;
+}
+
+.lux-promo-card::after {
+  content: "";
+  position: absolute;
+  inset: 44% 0 0;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.84));
+}
+
+.lux-promo-card > div {
+  position: absolute;
+  z-index: 2;
+  inset: auto 22px 22px;
+  display: grid;
+  gap: 5px;
+}
+
+.lux-promo-card b {
+  font-size: 1rem;
+}
+
+.lux-promo-card span {
+  color: rgba(247, 240, 228, 0.68);
+  font-size: 0.74rem;
+}
+
+.lux-products-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 42px 18px;
+}
+
+.lux-product-card {
+  display: grid;
+  gap: 16px;
+}
+
+.lux-product-media {
+  position: relative;
+  aspect-ratio: 0.78;
+  overflow: hidden;
+  background: #17120e;
+  border: 1px solid rgba(234, 212, 168, 0.14);
+}
+
+.lux-product-media img {
+  transition: transform 700ms ease;
+}
+
+.lux-product-card:hover .lux-product-media img {
+  transform: scale(1.045);
+}
+
+.lux-product-media small {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 8px 12px;
+  background: rgba(8, 7, 6, 0.74);
+  border: 1px solid rgba(234, 212, 168, 0.24);
+  color: var(--lux-gold);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.lux-product-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.lux-product-meta span {
+  color: var(--lux-gold);
+  font-size: 0.68rem;
+}
+
+.lux-product-meta h3 {
+  margin: 6px 0 0;
+  color: var(--lux-ink);
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+.lux-price-stack {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: 5px;
+  color: var(--lux-ink);
+  font-size: 0.78rem;
+}
+
+.lux-price-stack del {
+  color: rgba(247, 240, 228, 0.42);
+  font-size: 0.68rem;
+}
+
+.lux-guide {
+  padding: clamp(82px, 10vw, 145px) clamp(18px, 5vw, 82px);
+  background:
+    linear-gradient(180deg, rgba(215, 181, 109, 0.08), transparent),
+    #0d0b09;
+}
+
+.lux-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: min(100%, 1500px);
+  margin: 48px auto 0;
+  border-block: 1px solid var(--lux-line);
+}
+
+.lux-guide article {
+  min-height: 245px;
+  padding: 30px 26px;
+  border-inline-start: 1px solid var(--lux-line);
+}
+
+.lux-guide article:last-child {
+  border-inline-start: 0;
+}
+
+.lux-guide article span {
+  color: var(--lux-gold);
+  font-family: "Manrope", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.lux-guide article h3 {
+  margin: 70px 0 12px;
+  color: var(--lux-ink);
+  font-size: 1rem;
+}
+
+.lux-guide article p {
+  margin: 0;
+  color: var(--lux-muted);
+  font-size: 0.76rem;
+  line-height: 1.85;
+}
+
+.lux-shipping {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.74fr) minmax(0, 1.26fr);
+  gap: clamp(32px, 7vw, 110px);
+  width: min(100% - 36px, 1500px);
+  margin: 0 auto;
+  padding: clamp(82px, 10vw, 150px) 0;
+}
+
+.lux-shipping-list {
+  border-top: 1px solid var(--lux-line);
+}
+
+.lux-shipping-list article {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.5fr) 1fr;
+  gap: 28px;
+  padding: 28px 0;
+  border-bottom: 1px solid var(--lux-line);
+}
+
+.lux-shipping-list h3 {
+  margin: 0;
+  color: var(--lux-ink);
+  font-size: 1rem;
+}
+
+.lux-shipping-list p {
+  margin: 0;
+  color: var(--lux-muted);
+  font-size: 0.8rem;
+  line-height: 1.9;
+}
+
+.lux-story {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+  min-height: 620px;
+  background: var(--lux-paper);
+  color: #130f0b;
+}
+
+.lux-story-media {
+  display: grid;
+  position: relative;
+  place-items: center;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(215, 181, 109, 0.08), transparent 60%),
+    #0d0b09;
+}
+
+.lux-story-media img {
+  width: min(270px, 45vw);
+  max-height: 70%;
+  object-fit: contain;
+  filter: drop-shadow(0 24px 70px rgba(215, 181, 109, 0.24));
+}
+
+.lux-story-media span {
+  position: absolute;
+  left: 26px;
+  bottom: 20px;
+  color: rgba(247, 240, 228, 0.1);
+  direction: ltr;
+  font-family: "Cormorant Garamond", serif;
+  font-size: clamp(5rem, 12vw, 12rem);
+  font-weight: 700;
+}
+
+.lux-story article {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(54px, 8vw, 126px);
+}
+
+.lux-story article > p {
+  color: var(--lux-deep-gold);
+}
+
+.lux-story h2 {
+  color: #130f0b;
+  font-size: clamp(3rem, 5.2vw, 6rem);
+  line-height: 1.02;
+}
+
+.lux-story article > span {
+  display: block;
+  max-width: 620px;
+  margin: 26px 0 22px;
+  color: rgba(19, 15, 11, 0.66);
+  font-size: 0.92rem;
+  line-height: 2;
+}
+
+.lux-empty-state {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-height: 180px;
+  padding: 28px;
+  border: 1px solid var(--lux-line);
+  background: rgba(247, 240, 228, 0.04);
+}
+
+.lux-empty-state img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
+.lux-empty-state h3,
+.lux-empty-state p {
+  margin: 0;
+}
+
+.lux-empty-state p {
+  margin-top: 8px;
+  color: var(--lux-muted);
+  line-height: 1.8;
+}
+
+.lux-image-fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(215, 181, 109, 0.22), transparent 12rem),
+    #15110d;
+}
+
+.lux-image-fallback img {
+  width: min(32%, 96px);
+  height: auto;
+  object-fit: contain;
+}
+
+.lux-footer {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.1fr) 0.7fr 0.7fr;
+  gap: clamp(30px, 7vw, 100px);
+  padding: 76px clamp(18px, 5vw, 82px) 44px;
+  border-top: 1px solid var(--lux-line);
+  background: #080706;
+}
+
+.lux-footer p {
+  max-width: 470px;
+  margin: 18px 0 0;
+  color: var(--lux-muted);
+  font-size: 0.82rem;
+  line-height: 1.9;
+}
+
+.lux-footer nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lux-footer strong {
+  color: var(--lux-gold);
+  font-size: 0.78rem;
+}
+
+.lux-footer nav a {
+  color: var(--lux-muted);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 1120px) {
+  .lux-navbar {
+    grid-template-columns: auto 1fr;
+  }
+
+  .lux-navbar nav {
+    position: absolute;
+    top: 86px;
+    left: 16px;
+    right: 16px;
+    display: grid;
+    gap: 0;
+    padding: 12px;
+    border: 1px solid rgba(234, 212, 168, 0.2);
+    background: rgba(8, 7, 6, 0.96);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
+  }
+
+  .lux-navbar nav.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  .lux-navbar nav a {
+    padding: 14px;
+    border-bottom: 1px solid rgba(234, 212, 168, 0.1);
+    text-align: center;
+  }
+
+  .lux-navbar nav a:last-child {
+    border-bottom: 0;
+  }
+
+  .lux-nav-actions {
+    justify-self: end;
+  }
+
+  .lux-menu-toggle {
+    display: grid;
+  }
+
+  .lux-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .lux-hero-showcase {
+    min-height: 560px;
+  }
+
+  .lux-products-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .lux-guide-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .lux-navbar {
+    min-height: 76px;
+    padding: 12px 16px;
+  }
+
+  .lux-brand {
+    font-size: 1.55rem;
+  }
+
+  .lux-brand img {
+    width: 36px;
+    height: 36px;
+  }
+
+  .lux-cart-link {
+    min-height: 38px;
+    padding-inline: 12px;
+  }
+
+  .lux-navbar nav {
+    top: 76px;
+  }
+
+  .lux-hero {
+    gap: 34px;
+    min-height: auto;
+    padding: 50px 16px 62px;
+  }
+
+  .lux-hero h1 {
+    font-size: clamp(3.8rem, 18vw, 5.8rem);
+  }
+
+  .lux-hero h1 span {
+    font-size: clamp(1.45rem, 7vw, 2.25rem);
+  }
+
+  .lux-hero-actions,
+  .lux-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .lux-hero-showcase {
+    grid-template-columns: 1fr 0.44fr;
+    min-height: 470px;
+    gap: 10px;
+  }
+
+  .lux-benefit-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .lux-benefit-strip article {
+    border-inline-start: 0;
+    border-bottom: 1px solid var(--lux-line);
+  }
+
+  .lux-benefit-strip article:last-child {
+    border-bottom: 0;
+  }
+
+  .lux-category-rail {
+    grid-auto-columns: minmax(245px, 82%);
+  }
+
+  .lux-category-card {
+    min-height: 390px;
+  }
+
+  .lux-editorial,
+  .lux-shipping,
+  .lux-story,
+  .lux-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .lux-editorial-copy,
+  .lux-story article {
+    padding: 64px 20px;
+  }
+
+  .lux-promo-grid {
+    grid-template: 1.15fr 0.85fr / repeat(2, 1fr);
+    min-height: 720px;
+  }
+
+  .lux-promo-card.promo-0 {
+    grid-column: 1 / 3;
+    grid-row: 1;
+  }
+
+  .lux-products-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 30px 10px;
+  }
+
+  .lux-product-meta {
+    display: grid;
+  }
+
+  .lux-price-stack {
+    justify-items: start;
+  }
+
+  .lux-guide {
+    padding-inline: 16px;
+  }
+
+  .lux-guide-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lux-guide article {
+    min-height: 215px;
+    padding: 24px 16px;
+  }
+
+  .lux-guide article h3 {
+    margin-top: 42px;
+  }
+
+  .lux-shipping-list article {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .lux-story-media {
+    min-height: 390px;
+  }
+
+  .lux-footer {
+    padding-inline: 20px;
+  }
+}
+
+@media (max-width: 460px) {
+  .lux-brand span {
+    max-width: 142px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .lux-cart-link {
+    font-size: 0;
+  }
+
+  .lux-cart-link b {
+    font-size: 0.64rem;
+  }
+
+  .lux-hero-showcase {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .lux-hero-card.is-main,
+  .lux-hero-card.is-small {
+    grid-row: auto;
+    min-height: 310px;
+  }
+
+  .lux-hero-card.is-small {
+    min-height: 190px;
+  }
+
+  .lux-guide-grid,
+  .lux-products-grid {
+    grid-template-columns: 1fr;
+  }
+}

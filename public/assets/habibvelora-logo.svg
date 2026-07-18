@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Habiba Velora</title>
+  <rect width="512" height="512" rx="256" fill="#0b0907"/>
+  <circle cx="256" cy="256" r="226" fill="none" stroke="#c6a56d" stroke-width="5"/>
+  <circle cx="256" cy="256" r="205" fill="none" stroke="#c6a56d" stroke-opacity=".35" stroke-width="2"/>
+  <path d="M132 160v192m0-97h128m0-95v192M282 160l72 192 72-192" fill="none" stroke="#ead8b2" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="256" cy="91" r="7" fill="#c6a56d"/>
+  <circle cx="256" cy="421" r="7" fill="#c6a56d"/>
+</svg>

@@ -96,38 +96,6 @@ button:disabled,
   display: none !important;
 }
 
-.site-ferrofluid-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(255, 221, 157, 0.10), transparent 34%),
-    linear-gradient(180deg, #03010a 0%, #06030f 52%, #03010a 100%);
-}
-
-.site-ferrofluid-bg::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035), transparent 18%, transparent 82%, rgba(255, 255, 255, 0.035)),
-    radial-gradient(circle at 18% 62%, rgba(255, 221, 157, 0.055), transparent 26%),
-    radial-gradient(circle at 82% 32%, rgba(255, 255, 255, 0.05), transparent 24%);
-  opacity: 0.86;
-}
-
-.site-ferrofluid-bg canvas {
-  width: 100% !important;
-  height: 100% !important;
-  opacity: 0;
-  transition: opacity 420ms ease;
-}
-
-.site-ferrofluid-bg.is-live canvas {
-  opacity: 1;
-}
-
 .site-page-content,
 #__next {
   position: relative;

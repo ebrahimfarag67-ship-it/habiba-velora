@@ -1,5 +1,4 @@
-﻿import '../styles.css';
-import Script from 'next/script';
+import '../styles.css';
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 
@@ -8,13 +7,10 @@ const FORCED_THEME = 'dark';
 const ADMIN_SHORTCUT_CLICKS = 5;
 const ADMIN_SHORTCUT_WINDOW_MS = 2200;
 
-
 function installBrandFallbacks() {
   document.querySelectorAll('img.brand-mark').forEach((image) => {
     const replaceBrokenLogo = () => {
-      if (!image.isConnected || image.dataset.veloraFallback === '1') {
-        return;
-      }
+      if (!image.isConnected || image.dataset.veloraFallback === '1') return;
 
       const fallback = document.createElement('span');
       fallback.className = `${image.className} brand-mark-fallback`.trim();
@@ -35,7 +31,6 @@ function installBrandFallbacks() {
 
 export default function App({ Component, pageProps }) {
   const router = useRouter();
-
 
   useEffect(() => {
     document.body.dataset.theme = FORCED_THEME;
@@ -58,14 +53,12 @@ export default function App({ Component, pageProps }) {
 
     const isHomeLink = (anchor) => {
       if (!anchor) return false;
-
       const url = new URL(anchor.href, window.location.origin);
       return url.origin === window.location.origin && url.pathname === '/';
     };
 
     const handleHomeShortcut = (event) => {
       if (window.location.pathname !== '/') return;
-
       const anchor = event.target?.closest?.('a');
       if (!isHomeLink(anchor)) return;
 
@@ -93,11 +86,8 @@ export default function App({ Component, pageProps }) {
   }, []);
 
   return (
-    <>
-      <div className="site-page-content">
-        <Component {...pageProps} />
-      </div>
-      <Script src="/motion.js" strategy="afterInteractive" />
-    </>
+    <div className="site-page-content">
+      <Component {...pageProps} />
+    </div>
   );
 }

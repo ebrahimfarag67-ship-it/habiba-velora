@@ -12,7 +12,7 @@
 - Color: keep one dominant dark luxury palette, with sharp gold and white accents controlled through CSS variables.
 - Motion: prefer one strong page-load reveal and selective polished transitions over noisy hover effects.
 - Layout: avoid generic centered stacks. Use asymmetry, overlap, diagonal rhythm, and generous negative space where it fits the jewelry brand.
-- Background: keep the atmospheric liquid/WebGL identity, but tune performance so browsing stays smooth on laptops and phones.
+- Background: keep the dark luxury identity with lightweight CSS and real product imagery; avoid WebGL so product browsing stays stable on laptops and phones.
 - Product UI: prioritize fast scanning, large touch targets, clear Arabic text, visible prices, and premium image presentation.
 - Admin/checkout/returns: keep forms practical and readable, with dark-mode selects, large mobile buttons, and invoice text sized for phones.
 
