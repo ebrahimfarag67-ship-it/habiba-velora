@@ -1,6 +1,5 @@
 import { put } from '@vercel/blob';
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '172005';
+import { adminAuthMessage, isAdminRequest } from '../../lib/admin-auth';
 
 export const config = {
   api: {
@@ -28,8 +27,8 @@ export default async function handler(request, response) {
     return;
   }
 
-  if (request.headers['x-admin-password'] !== ADMIN_PASSWORD) {
-    response.status(401).json({ message: 'Unauthorized.' });
+  if (!isAdminRequest(request)) {
+    response.status(401).json({ message: adminAuthMessage() });
     return;
   }
 

@@ -1,0 +1,22 @@
+/* Print styles */
+@media print {
+  .no-print,
+  .topbar,
+  .clean-mobile-dock,
+  .mobile-bottom-nav,
+  .site-ferrofluid-bg,
+  .toast-region {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  .invoice-print-card {
+    color: #111;
+    background: #fff;
+    box-shadow: none;
+  }
+}

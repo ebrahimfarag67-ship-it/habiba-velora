@@ -6,14 +6,8 @@
     wishlist: 'velora-store-v4-wishlist',
     theme: 'velora-store-v4-theme',
   };
-  const legacyStorageKeys = store.legacyStorageKeys || {
-    cart: ['velora-store-v3-cart', 'velora-store-v2-cart'],
-    wishlist: ['velora-store-v3-wishlist', 'velora-store-v2-wishlist'],
-    theme: ['velora-store-v3-theme', 'velora-store-v2-theme'],
-  };
   const fallbackProducts = Array.isArray(store.products) ? store.products : [];
   const mount = document.getElementById('productPageMount');
-  const themeToggle = document.getElementById('themeToggle');
   const cartJump = document.getElementById('cartJump');
   const cartCount = document.getElementById('cartCount');
   const toastRegion = document.getElementById('toastRegion');
@@ -46,6 +40,14 @@
     color: '',
     size: '',
     quantity: 1,
+    reviews: [],
+  };
+
+  const productPageSwipe = {
+    active: false,
+    suppressed: false,
+    startX: 0,
+    startY: 0,
   };
 
   state.product = getProduct(state.productId) || state.products[0] || null;
@@ -72,27 +74,6 @@
     } catch {
       return structuredCloneFallback(fallback);
     }
-  }
-
-  function loadStoredValueWithFallback(primaryKey, fallbackKeys, fallback) {
-    const currentValue = loadStorage(primaryKey, null);
-    if (currentValue !== null && currentValue !== undefined) {
-      return currentValue;
-    }
-
-    for (const key of fallbackKeys || []) {
-      const legacyValue = loadStorage(key, null);
-      if (legacyValue !== null && legacyValue !== undefined) {
-        try {
-          localStorage.setItem(primaryKey, JSON.stringify(legacyValue));
-        } catch {
-          // ignore migration write failures
-        }
-        return legacyValue;
-      }
-    }
-
-    return structuredCloneFallback(fallback);
   }
 
   function saveStorage(key, value) {
@@ -135,6 +116,57 @@
       return fallback;
     }
     return text;
+  }
+
+  function compactReviewText(value) {
+    return normalizeText(value)
+      .replace(/\s+/g, ' ')
+      .slice(0, 240);
+  }
+
+  function textQuality(value, options = {}) {
+    const text = compactReviewText(value);
+    const letters = text.match(/[\p{L}]/gu) || [];
+    const words = text.match(/[\p{L}\p{N}]+/gu) || [];
+    const uniqueLetters = new Set(letters.map((letter) => letter.toLowerCase()));
+    const minimumLength = options.minimumLength ?? 2;
+    const minimumLetters = options.minimumLetters ?? 2;
+    const minimumWords = options.minimumWords ?? 1;
+
+    if (
+      text.length < minimumLength ||
+      letters.length < minimumLetters ||
+      words.length < minimumWords ||
+      uniqueLetters.size < Math.min(3, minimumLetters)
+    ) {
+      return false;
+    }
+
+    if (/(.)\1{3,}/u.test(text) || /https?:|www\.|@\w|[٠-٩0-9]{7,}/iu.test(text)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  function validateReviewForm(formData) {
+    const rating = Number(formData.get('rating') || 0);
+    const name = compactReviewText(formData.get('name'));
+    const comment = compactReviewText(formData.get('comment'));
+
+    if (!rating || rating < 1 || rating > 5) {
+      return { ok: false, message: 'اختار تقييم من 1 إلى 5 نجوم.' };
+    }
+
+    if (!textQuality(name, { minimumLength: 2, minimumLetters: 2, minimumWords: 1 })) {
+      return { ok: false, message: 'راجع الاسم المكتوب.' };
+    }
+
+    if (!textQuality(comment, { minimumLength: 10, minimumLetters: 7, minimumWords: 2 })) {
+      return { ok: false, message: 'راجع التعليق المكتوب.' };
+    }
+
+    return { ok: true, rating, name, comment };
   }
 
   function canonicalCategory(value, fallback = '') {
@@ -222,6 +254,19 @@
     return countFormatter.format(Math.max(0, Math.floor(toNumber(value))));
   }
 
+  function formatReviewDate(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    return date.toLocaleDateString('ar-EG-u-nu-latn', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+
   function dedupeList(values) {
     return [...new Set(values.filter(Boolean))];
   }
@@ -254,6 +299,18 @@
         };
       })
       .filter((model) => model.name || model.image);
+  }
+
+  function getVisibleProductGallery(product = state.product) {
+    if (!product) {
+      return [];
+    }
+
+    const baseGallery = getProductGallery(product);
+    const models = normalizeProductModels(product.models, baseGallery);
+    const activeModel = models[state.modelIndex] || null;
+    const modelGallery = activeModel ? dedupeList([activeModel.image, ...activeModel.gallery]) : [];
+    return modelGallery.length ? modelGallery : (baseGallery.length ? baseGallery : [product.image || '']);
   }
 
   function normalizeProduct(product, index = 0) {
@@ -298,7 +355,7 @@
   }
 
   function loadProducts() {
-    const stored = loadStoredValueWithFallback(storageKeys.products, legacyStorageKeys.products || [], null);
+    const stored = loadStorage(storageKeys.products, null);
     if (Array.isArray(stored) && stored.length) {
       return stored.map((product, index) => normalizeProduct(product, index));
     }
@@ -346,12 +403,89 @@
     });
   }
 
+  function applyReviewData(data) {
+    state.reviews = Array.isArray(data?.reviews) ? data.reviews : [];
+    applyProductReviewSummary(data?.summary || {});
+  }
+
+  function getProductReviews(productId) {
+    return state.reviews
+      .filter((review) => review && review.productId === productId && compactReviewText(review.comment))
+      .slice(0, 8);
+  }
+
+  function renderRatingStars(value, className = 'review-stars-display') {
+    const rating = Math.max(0, Math.min(5, Math.round(toNumber(value, 0))));
+    const stars = Array.from({ length: 5 }, (_, index) => {
+      const filled = index < rating ? ' filled' : '';
+      return `<span class="${filled.trim()}" aria-hidden="true">★</span>`;
+    }).join('');
+
+    return `<span class="${className}" aria-label="${rating} من 5 نجوم">${stars}</span>`;
+  }
+
+  function reviewRatingInput() {
+    const stars = Array.from({ length: 5 }, (_, index) => {
+      const value = index + 1;
+      return `
+        <button type="button" class="review-star-button" data-rating-value="${value}" role="radio" aria-checked="false" aria-label="${value} من 5 نجوم">
+          ★
+        </button>
+      `;
+    }).join('');
+
+    return `
+      <div class="review-rating-field" data-review-rating>
+        <input type="hidden" name="rating" value="" />
+        <div class="review-stars-input" role="radiogroup" aria-label="اختيار عدد النجوم">
+          ${stars}
+        </div>
+        <small data-rating-label>اختار عدد النجوم</small>
+      </div>
+    `;
+  }
+
+  function renderProductReviews(product) {
+    const reviews = getProductReviews(product.id);
+    if (!reviews.length) {
+      return `
+        <div class="product-review-list product-review-list-empty">
+          <strong>لا توجد تعليقات واضحة حتى الآن.</strong>
+          <p>اكتب تجربة حقيقية ومفهومة بعد استخدام المنتج.</p>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="product-review-list">
+        <div class="product-review-list-head">
+          <strong>تعليقات العملاء</strong>
+          <span>${formatCount(reviews.length)} ظاهر</span>
+        </div>
+        ${reviews.map((review) => `
+          <article class="product-review-item">
+            <div class="product-review-item-head">
+              <strong>${escapeHtml(compactReviewText(review.name) || 'عميل')}</strong>
+              <span class="product-review-meta">${renderRatingStars(review.rating)} <small>${escapeHtml(formatReviewDate(review.createdAt))}</small></span>
+            </div>
+            <p>${escapeHtml(compactReviewText(review.comment))}</p>
+          </article>
+        `).join('')}
+      </div>
+    `;
+  }
+
   async function submitProductReview(form) {
     if (!state.product) {
       return;
     }
     const formData = new FormData(form);
-    const rating = Number(formData.get('rating') || 0);
+    const validated = validateReviewForm(formData);
+    if (!validated.ok) {
+      showToast('راجع التعليق', validated.message, 'warning');
+      return;
+    }
+
     const submitButton = form.querySelector('button[type="submit"]');
     submitButton.disabled = true;
     try {
@@ -360,22 +494,27 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productId: state.product.id,
-          rating,
-          name: normalizeText(formData.get('name'), 'عميل'),
-          comment: normalizeText(formData.get('comment')),
+          rating: validated.rating,
+          name: validated.name,
+          comment: validated.comment,
         }),
       });
       if (!response.ok) {
-        throw new Error('review failed');
+        const errorPayload = await response.json().catch(() => ({}));
+        throw new Error(errorPayload.error || 'review failed');
+      }
+      const payload = await response.json().catch(() => ({}));
+      if (payload.review) {
+        state.reviews = [payload.review, ...state.reviews.filter((review) => review.id !== payload.review.id)];
       }
       const data = await fetchReviewData();
-      applyProductReviewSummary(data.summary);
+      applyReviewData(data);
       state.product = getProduct(state.productId) || state.products[0] || null;
       form.reset();
-      showToast('تم إرسال التقييم', 'شكرًا لمشاركتك رأيك في المنتج.', 'success');
+      showToast('تم إرسال التقييم', 'التعليق ظهر على صفحة المنتج.', 'success');
       render();
     } catch (error) {
-      showToast('تعذر إرسال التقييم', 'حاول مرة أخرى بعد لحظات.', 'error');
+      showToast('تعذر إرسال التقييم', error.message || 'حاول مرة أخرى بعد لحظات.', 'error');
     } finally {
       submitButton.disabled = false;
     }
@@ -405,7 +544,7 @@
     }
 
     state.products = result.products.map((product, index) => normalizeProduct(product, index));
-    applyProductReviewSummary((await fetchReviewData()).summary);
+    applyReviewData(await fetchReviewData());
     saveStorage(storageKeys.products, state.products);
     state.product = getProduct(state.productId) || state.products[0] || null;
     if (state.product) {
@@ -418,11 +557,8 @@
   }
 
   function loadTheme() {
-    const stored = loadStorage(storageKeys.theme, '');
-    if (stored === 'dark' || stored === 'light') {
-      return stored;
-    }
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    saveStorage(storageKeys.theme, 'dark');
+    return 'dark';
   }
 
   function saveCart() {
@@ -521,15 +657,33 @@
   }
 
   function smartBadge(product) {
-    if (toNumber(product?.stock, 0) > 0 && toNumber(product?.stock, 0) <= 3) {
+    const stock = toNumber(product?.stock, 0);
+    const rawBadge = normalizeText(product?.badge, '');
+    const normalizedBadge = rawBadge.replace(/[أإآ]/g, 'ا').toLowerCase();
+
+    if (normalizedBadge.includes('حجز') || normalizedBadge.includes('محجوز') || normalizedBadge.includes('pre')) {
+      return stock > 0
+        ? { label: availabilityLabel(stock), className: stock <= 3 ? 'urgent' : 'available' }
+        : { label: availabilityLabel(stock), className: 'sold' };
+    }
+    if (stock > 0 && stock <= 3) {
       return { label: 'آخر قطع', className: 'urgent' };
     }
     if (isNewProduct(product)) {
       return { label: 'وصل حديثًا', className: 'new' };
     }
+    if (!stock) {
+      return { label: availabilityLabel(stock), className: 'sold' };
+    }
+    if (rawBadge && !rawBadge.includes('متوفر')) {
+      return {
+        label: rawBadge,
+        className: rawBadge.includes('مميز') ? 'hot' : '',
+      };
+    }
     return {
-      label: normalizeText(product?.badge, 'مميز'),
-      className: String(product?.badge || '').includes('مميز') ? 'hot' : '',
+      label: availabilityLabel(stock),
+      className: 'available',
     };
   }
 
@@ -547,26 +701,10 @@
     return Math.max(1, Math.round(((compareAt - price) / compareAt) * 100));
   }
 
-  function updateThemeToggle() {
-    if (!themeToggle) {
-      return;
-    }
-    const icon = themeToggle.querySelector('span');
-    const label = themeToggle.querySelector('small');
-    if (icon) {
-      icon.textContent = '';
-    }
-    if (label) {
-      label.textContent = state.theme === 'dark' ? 'فاتح' : 'داكن';
-    }
-    themeToggle.setAttribute('aria-pressed', state.theme === 'dark' ? 'true' : 'false');
-  }
-
   function setTheme(theme) {
-    state.theme = theme === 'dark' ? 'dark' : 'light';
+    state.theme = 'dark';
     document.body.dataset.theme = state.theme;
     saveTheme();
-    updateThemeToggle();
   }
 
   function updateCartCounter() {
@@ -887,7 +1025,7 @@
     document.querySelector('meta[property="og:title"]')?.setAttribute('content', `${product.name} | HabibaVelora`);
     document.querySelector('meta[property="og:description"]')?.setAttribute('content', description);
     if (productOgImage) {
-      productOgImage.setAttribute('content', getProductGalleryImage(product) || '/assets/habiba-velora-hero.jpg');
+      productOgImage.setAttribute('content', getProductGalleryImage(product) || '');
     }
   }
 
@@ -931,7 +1069,8 @@
     }
 
     const product = state.product;
-    const models = normalizeProductModels(product.models, product.gallery);
+    const baseGallery = getProductGallery(product);
+    const models = normalizeProductModels(product.models, baseGallery);
     const priceOptions = normalizePriceOptions(product.priceOptions);
     if (priceOptions.length === 1 && state.priceOptionIndex === null) {
       state.priceOptionIndex = 0;
@@ -946,9 +1085,7 @@
     const mustChoosePriceOption = priceOptions.length > 1 && !activePriceOption;
     const activePrice = activePriceOption ? activePriceOption.price : (priceOptions.length ? 0 : product.price);
     const activeCompareAtPrice = activePrice ? Math.round(activePrice * 1.15) : product.compareAtPrice;
-    const activeModel = models[state.modelIndex] || null;
-    const modelGallery = activeModel ? dedupeList([activeModel.image, ...activeModel.gallery]) : [];
-    const gallery = modelGallery.length ? modelGallery : (getProductGallery(product).length ? getProductGallery(product) : [product.image || '']);
+    const gallery = getVisibleProductGallery(product);
     if (state.galleryIndex >= gallery.length) {
       state.galleryIndex = 0;
     }
@@ -962,6 +1099,7 @@
     const discount = calculateDiscount(product);
     const badge = smartBadge(product);
     const relatedProducts = buildRelatedProducts(product);
+    const productReviewsHtml = renderProductReviews(product);
 
     updateMeta(product);
 
@@ -972,11 +1110,18 @@
             <div class="product-page-panel product-page-main">
               ${activeImage ? `<button type="button" class="product-image-preview-trigger" data-action="preview-image" aria-label="معاينة صورة ${escapeHtml(product.name)}"></button>` : ''}
               ${activeImage ? `<img src="${escapeHtml(activeImage)}" alt="${escapeHtml(product.name)}" loading="eager" fetchpriority="high" decoding="async" />` : `<div class="empty-state compact"><strong>&#1575;&#1604;&#1589;&#1608;&#1585;&#1577; &#1594;&#1610;&#1585; &#1605;&#1578;&#1575;&#1581;&#1577;</strong></div>`}
+              ${gallery.length > 1 ? `
+                <div class="product-page-gallery-controls" aria-label="تقليب صور المنتج">
+                  <button type="button" data-action="gallery-step" data-direction="-1" aria-label="الصورة السابقة">‹</button>
+                  <button type="button" data-action="gallery-step" data-direction="1" aria-label="الصورة التالية">›</button>
+                </div>
+                <span class="product-page-gallery-count">${formatCount(state.galleryIndex + 1)} / ${formatCount(gallery.length)}</span>
+              ` : ''}
             </div>
             <div class="product-page-thumbnails">
               ${gallery.map((src, index) => `
                 <button type="button" data-action="gallery" data-index="${index}" class="${index === state.galleryIndex ? 'active' : ''}">
-                  <img src="${escapeHtml(src)}" alt="${escapeHtml(product.name)} ${index + 1}" loading="eager" decoding="async" />
+                  <img src="${escapeHtml(src)}" alt="${escapeHtml(product.name)} ${index + 1}" loading="${index < 4 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index < 2 ? 'high' : 'auto'}" />
                 </button>
               `).join('')}
             </div>
@@ -990,15 +1135,6 @@
               </div>
 
               <h2>${escapeHtml(product.name)}</h2>
-              <p class="product-page-copy">${escapeHtml(product.details)}</p>
-
-              ${rating ? `
-                <div class="product-modal-rating">
-                  <span class="product-stars">&#1578;&#1602;&#1610;&#1610;&#1605; &#1575;&#1604;&#1593;&#1605;&#1604;&#1575;&#1569;</span>
-                  <strong>${escapeHtml(rating)}</strong>
-                  <small>${formatCount(product.reviewCount)} مراجعة</small>
-                </div>
-              ` : ''}
 
               <div class="product-modal-price smooth-price">
                 <strong class="product-price">${mustChoosePriceOption ? 'اختار النوع لعرض السعر' : escapeHtml(formatMoney(activePrice))}</strong>
@@ -1061,29 +1197,45 @@
               </div>
 
               <div class="product-modal-actions">
-                <button type="button" class="primary-btn" data-action="add-to-cart" ${mustChoosePriceOption ? 'disabled' : ''}>${mustChoosePriceOption ? 'اختار النوع أولًا' : 'أضف للسلة'}</button>
+                <button type="button" class="primary-btn animated-order-button" data-action="add-to-cart" ${mustChoosePriceOption ? 'disabled' : ''}>
+                  <svg class="arr-1" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M13.5 5.5 20 12l-6.5 6.5-1.4-1.4 4.1-4.1H4v-2h12.2l-4.1-4.1 1.4-1.4Z" />
+                  </svg>
+                  <span class="circle" aria-hidden="true"></span>
+                  <span class="text">${mustChoosePriceOption ? 'اختار النوع أولًا' : 'أضف للطلب'}</span>
+                  <svg class="arr-2" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M13.5 5.5 20 12l-6.5 6.5-1.4-1.4 4.1-4.1H4v-2h12.2l-4.1-4.1 1.4-1.4Z" />
+                  </svg>
+                </button>
                 <button type="button" class="secondary-btn" data-action="wishlist">
                   ${state.wishlist.includes(product.id) ? 'إزالة من المفضلة' : 'أضف للمفضلة'}
                 </button>
               </div>
 
-              <form class="product-review-form" data-review-form>
-                <div>
-                  <span class="variant-label">قيّم المنتج</span>
-                  <p>التقييمات تظهر بعد مشاركة العملاء فقط.</p>
-                </div>
-                <select name="rating" required aria-label="اختيار التقييم">
-                  <option value="">اختر التقييم</option>
-                  <option value="5">5 نجوم</option>
-                  <option value="4">4 نجوم</option>
-                  <option value="3">3 نجوم</option>
-                  <option value="2">2 نجوم</option>
-                  <option value="1">1 نجمة</option>
-                </select>
-                <input name="name" type="text" placeholder="اسمك اختياري" />
-                <textarea name="comment" rows="3" placeholder="اكتب رأيك اختياري"></textarea>
-                <button type="submit" class="secondary-btn">إرسال التقييم</button>
-              </form>
+              <div class="product-detail-block">
+                <span class="variant-label">تفاصيل المنتج</span>
+                <p class="product-page-copy">${escapeHtml(product.details)}</p>
+              </div>
+
+              <section class="product-comments-block" aria-label="تعليقات العملاء">
+                ${rating ? `
+                  <div class="product-modal-rating">
+                    <span class="product-stars">&#1578;&#1602;&#1610;&#1610;&#1605; &#1575;&#1604;&#1593;&#1605;&#1604;&#1575;&#1569;</span>
+                    <strong>${escapeHtml(rating)}</strong>
+                    <small>${formatCount(product.reviewCount)} مراجعة</small>
+                  </div>
+                ` : ''}
+                <form class="product-review-form" data-review-form>
+                  <div>
+                    <span class="variant-label">قيّم المنتج</span>
+                  </div>
+                  ${reviewRatingInput()}
+                  <input name="name" type="text" placeholder="اسمك" required minlength="2" maxlength="40" autocomplete="name" />
+                  <textarea name="comment" rows="3" placeholder="اكتب تعليق واضح عن المنتج" required minlength="10" maxlength="240"></textarea>
+                  <button type="submit" class="secondary-btn">إرسال التقييم</button>
+                </form>
+                ${productReviewsHtml}
+              </section>
             </div>
 
           </aside>
@@ -1099,9 +1251,9 @@
         </div>
 
         <div class="product-page-related-grid">
-          ${relatedProducts.length ? relatedProducts.map((item) => `
+          ${relatedProducts.length ? relatedProducts.map((item, index) => `
             <a class="product-page-related-card" href="/product?id=${encodeURIComponent(item.id)}">
-              <img src="${escapeHtml(getProductGalleryImage(item))}" alt="${escapeHtml(item.name)}" />
+              <img src="${escapeHtml(getProductGalleryImage(item))}" alt="${escapeHtml(item.name)}" loading="${index < 3 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index < 3 ? 'high' : 'auto'}" />
               <strong>${escapeHtml(item.name)}</strong>
               <span>${escapeHtml(item.category)}</span>
               <span>${escapeHtml(formatProductPriceOptions(item))}</span>
@@ -1120,16 +1272,53 @@
   }
 
   function handleClick(event) {
+    const ratingButton = event.target.closest('[data-rating-value]');
+    if (ratingButton) {
+      const field = ratingButton.closest('[data-review-rating]');
+      const value = Math.max(1, Math.min(5, Number(ratingButton.dataset.ratingValue || 0)));
+      const input = field?.querySelector('input[name="rating"]');
+      const label = field?.querySelector('[data-rating-label]');
+
+      if (field && input && value) {
+        field.dataset.rating = String(value);
+        input.value = String(value);
+        field.querySelectorAll('[data-rating-value]').forEach((button) => {
+          const active = Number(button.dataset.ratingValue || 0) <= value;
+          button.classList.toggle('active', active);
+          button.setAttribute('aria-checked', active && button === ratingButton ? 'true' : 'false');
+        });
+        if (label) {
+          label.textContent = value === 1 ? 'نجمة واحدة' : `${value} نجوم`;
+        }
+      }
+      return;
+    }
+
     const actionButton = event.target.closest('[data-action]');
     if (!actionButton) {
       return;
     }
 
     const action = actionButton.dataset.action;
+    if (productPageSwipe.suppressed && action === 'preview-image') {
+      event.preventDefault();
+      return;
+    }
+
     if (action === 'preview-image') {
-      const gallery = getProductGallery(state.product);
+      const gallery = getVisibleProductGallery(state.product);
       const activeImage = gallery[state.galleryIndex] || gallery[0] || state.product?.image || '';
       openProductImagePreview(activeImage, state.product?.name || 'المنتج');
+      return;
+    }
+
+    if (action === 'gallery-step') {
+      const gallery = getVisibleProductGallery(state.product);
+      if (gallery.length > 1) {
+        const direction = Number(actionButton.dataset.direction || 0);
+        state.galleryIndex = ((state.galleryIndex + direction) % gallery.length + gallery.length) % gallery.length;
+        render();
+      }
       return;
     }
 
@@ -1192,8 +1381,55 @@
     }
   }
 
+  function handleGalleryPointerDown(event) {
+    if (!event.target.closest('.product-page-main') || event.target.closest('.product-page-gallery-controls')) {
+      return;
+    }
+
+    if (getVisibleProductGallery(state.product).length < 2) {
+      return;
+    }
+
+    productPageSwipe.active = true;
+    productPageSwipe.startX = event.clientX;
+    productPageSwipe.startY = event.clientY;
+  }
+
+  function handleGalleryPointerUp(event) {
+    if (!productPageSwipe.active) {
+      return;
+    }
+
+    const deltaX = event.clientX - productPageSwipe.startX;
+    const deltaY = event.clientY - productPageSwipe.startY;
+    productPageSwipe.active = false;
+
+    if (Math.abs(deltaX) < 42 || Math.abs(deltaX) < Math.abs(deltaY) * 1.15) {
+      return;
+    }
+
+    const gallery = getVisibleProductGallery(state.product);
+    if (gallery.length < 2) {
+      return;
+    }
+
+    event.preventDefault();
+    productPageSwipe.suppressed = true;
+    const direction = deltaX < 0 ? 1 : -1;
+    state.galleryIndex = ((state.galleryIndex + direction) % gallery.length + gallery.length) % gallery.length;
+    render();
+    window.setTimeout(() => {
+      productPageSwipe.suppressed = false;
+    }, 360);
+  }
+
   function bindEvents() {
     mount.addEventListener('click', handleClick);
+    mount.addEventListener('pointerdown', handleGalleryPointerDown);
+    mount.addEventListener('pointerup', handleGalleryPointerUp);
+    mount.addEventListener('pointercancel', () => {
+      productPageSwipe.active = false;
+    });
     mount.addEventListener('submit', (event) => {
       const form = event.target.closest('[data-review-form]');
       if (!form) {
@@ -1201,10 +1437,6 @@
       }
       event.preventDefault();
       submitProductReview(form);
-    });
-
-    themeToggle?.addEventListener('click', () => {
-      setTheme(state.theme === 'dark' ? 'light' : 'dark');
     });
 
     cartJump?.addEventListener('click', (event) => {
@@ -1243,5 +1475,10 @@
   setTheme(state.theme);
   updateCartCounter();
   render();
+  fetchReviewData().then((data) => {
+    applyReviewData(data);
+    state.product = getProduct(state.productId) || state.products[0] || null;
+    render();
+  });
 })();
 

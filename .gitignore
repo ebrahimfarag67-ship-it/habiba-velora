@@ -3,3 +3,19 @@ node_modules
 .next
 
 .env*
+
+*.log
+*.pid
+.next-*
+.tmp-*/
+.tools/
+.vercel-cache/
+.vercel-global/
+.agents/
+skills-lock.json
+higgsfield-install.sh
+public/*preview*.png
+public/habiba-live-after-update.png
+public/reference-full-preview.png
+public/assets/habiba-velora-3d-jewelry-hero.png
+public/assets/habiba-velora-3d-portrait.png

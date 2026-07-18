@@ -12,22 +12,12 @@ const storageKeys = {
   orders: 'velora-store-v4-orders',
   notifications: 'velora-store-v4-notifications',
   returnRequests: 'velora-store-v4-return-requests',
-  adminAccess: 'velora-admin-access-v4-172005',
+  adminAccess: 'velora-admin-access-v5',
   theme: 'velora-store-v4-theme',
 };
 
-const legacyStorageKeys = {
-  cart: ['velora-store-v3-cart', 'velora-store-v2-cart'],
-  wishlist: ['velora-store-v3-wishlist', 'velora-store-v2-wishlist'],
-  orders: ['velora-store-v3-orders', 'velora-store-v2-orders'],
-  notifications: ['velora-store-v3-notifications', 'velora-store-v2-notifications'],
-  returnRequests: ['velora-store-v3-return-requests', 'velora-store-v2-return-requests'],
-  adminAccess: ['velora-admin-access-v3-172005', 'velora-admin-access-v2-172005'],
-  theme: ['velora-store-v3-theme', 'velora-store-v2-theme'],
-};
-
 const adminCredentials = {
-  password: '172005',
+  password: '',
 };
 
 const defaultProducts = [];
@@ -72,12 +62,11 @@ window.veloraStore = {
     : defaultProducts,
   orders: defaultOrders,
   storageKeys,
-  legacyStorageKeys,
   adminCredentials,
   governorates: egyptGovernorates,
   governorateAreas,
   shippingFees,
-  paymentMethods: ['عند الاستلام', 'فودافون كاش', 'فيزا / ماستر كارد'],
+  paymentMethods: ['عند الاستلام'],
   tonePalette,
 };
 
@@ -155,6 +144,7 @@ function ensureVeloraTopNav() {
     const anchor = findVeloraNavLink(nav, ['#categories', '/#categories', '/']) || nav.firstElementChild;
     const trackingLink = ensureVeloraNavLink(nav, '/order-tracking', 'متابعة الطلب');
     const returnsLink = ensureVeloraNavLink(nav, '/after-sales', 'فاتورة المرتجع');
+    const aboutLink = ensureVeloraNavLink(nav, '/about', 'قصتنا');
 
     if (anchor) {
       anchor.after(trackingLink);
@@ -162,6 +152,7 @@ function ensureVeloraTopNav() {
       nav.appendChild(trackingLink);
     }
     trackingLink.after(returnsLink);
+    returnsLink.after(aboutLink);
   });
 
   const returnHeader = document.querySelector('.return-header');
@@ -174,6 +165,7 @@ function ensureVeloraTopNav() {
       <a href="/#categories">الأقسام</a>
       <a href="/order-tracking">متابعة الطلب</a>
       <a href="/after-sales">فاتورة المرتجع</a>
+      <a href="/about">قصتنا</a>
     `;
     const backLink = returnHeader.querySelector('a.secondary-btn');
     returnHeader.insertBefore(nav, backLink || null);

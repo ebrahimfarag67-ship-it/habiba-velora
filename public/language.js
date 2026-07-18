@@ -18,6 +18,24 @@
     'الرئيسية': 'Home',
     'المتجر': 'Store',
     'الأقسام': 'Categories',
+    'حركة القطع على الطبيعة': 'Pieces in Motion',
+    'تسوقي بعد المشاهدة': 'Shop After Watching',
+    'تفاصيل بتلمع في الحركة': 'Details that shine in motion',
+    'لقطات قريبة للّوك الحقيقي من HabibaVelora، عشان تشوفي اللمعة والحجم والإحساس قبل ما تختاري.': 'Close-up HabibaVelora reels show shine, scale, and feel before you choose.',
+    'لقطات مختارة': 'Selected Reels',
+    'كل فيديوهات HabibaVelora': 'All HabibaVelora Videos',
+    'افتتاحية ناعمة': 'Soft Opening',
+    'تفاصيل الإضاءة': 'Light Details',
+    'حركة القطعة': 'Piece in Motion',
+    'لوك يومي': 'Daily Look',
+    'لمسة ذهبية': 'Golden Touch',
+    'قريب من المنتج': 'Close to Product',
+    'ستايل خفيف': 'Light Style',
+    'لقطة سريعة': 'Quick Shot',
+    'خامة ولمعة': 'Texture and Shine',
+    'نهاية أنيقة': 'Elegant Finish',
+    'تسوقي حسب القسم': 'Shop by Category',
+    'دخول القسم': 'Open Collection',
     'المنتجات': 'Products',
     'تابعينا': 'Follow Us',
     'اللغة': 'Language',
@@ -47,6 +65,7 @@
     'السلة فارغة الآن': 'Your cart is empty',
     'اختاري منتج، والدرج هيفتح لك مراجعة سريعة هنا.': 'Choose a product, then review it here.',
     'أضف للسلة': 'Add to Cart',
+    'إضافة سريعة': 'Quick Add',
     'صفحة المنتج': 'Product Page',
     'اختاري النوع': 'Choose Type',
     'بدون خيارات': 'No Options',
@@ -154,6 +173,8 @@
     'قيّم المنتج': 'Rate Product',
     'التقييمات تظهر بعد مشاركة العملاء فقط.': 'Ratings appear after customers share feedback.',
     'اختر التقييم': 'Choose Rating',
+    'اختار عدد النجوم': 'Choose Stars',
+    'نجمة واحدة': 'One Star',
     'اسمك اختياري': 'Your name, optional',
     'اكتب رأيك اختياري': 'Write your feedback, optional',
     'إرسال التقييم': 'Submit Review',
@@ -449,6 +470,10 @@
   function translateAttributes(root) {
     const nodes = root.querySelectorAll?.('[placeholder], [aria-label], [title], [data-i18n-label]') || [];
     nodes.forEach((node) => {
+      if (node.closest?.('[data-no-translate]')) {
+        return;
+      }
+
       if (node.placeholder !== undefined) {
         if (!node.dataset.originalPlaceholder && hasArabic(node.placeholder)) {
           node.dataset.originalPlaceholder = node.placeholder;
@@ -497,6 +522,10 @@
           return NodeFilter.FILTER_REJECT;
         }
 
+        if (parent.closest('[data-no-translate]')) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
         if (!normalizeText(node.nodeValue)) {
           return NodeFilter.FILTER_REJECT;
         }
@@ -542,6 +571,7 @@
       actions.insertBefore(button, actions.firstElementChild);
     }
 
+    bindLanguageButton(document.getElementById('languageToggle'));
     bindLanguageButton(document.getElementById('mobileNavLanguageToggle'));
   }
 
@@ -579,13 +609,25 @@
 
   function scheduleApply() {
     window.clearTimeout(applyTimer);
-    applyTimer = window.setTimeout(() => applyLanguage(), 0);
+    applyTimer = window.setTimeout(() => {
+      if (currentLanguage === defaultLanguage) {
+        document.documentElement.lang = defaultLanguage;
+        document.documentElement.dir = 'rtl';
+        document.body.dataset.language = defaultLanguage;
+        ensureLanguageToggle();
+        updateLanguageToggle();
+        return;
+      }
+
+      applyLanguage();
+    }, 80);
   }
 
   function setLanguage(language) {
     currentLanguage = supportedLanguages.has(language) ? language : defaultLanguage;
     saveLanguage(currentLanguage);
     applyLanguage();
+    observeChanges();
   }
 
   function observeChanges() {
@@ -595,17 +637,36 @@
         scheduleApply();
       }
     });
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ['placeholder', 'aria-label', 'title'],
-    });
+    const observerOptions = currentLanguage === defaultLanguage
+      ? {
+          childList: true,
+          subtree: true,
+        }
+      : {
+          childList: true,
+          subtree: true,
+          characterData: true,
+          attributes: true,
+          attributeFilter: ['placeholder', 'aria-label', 'title'],
+        };
+
+    observer.observe(document.body, observerOptions);
+  }
+
+  function applyDefaultLanguageShell() {
+    document.documentElement.lang = defaultLanguage;
+    document.documentElement.dir = 'rtl';
+    document.body.dataset.language = defaultLanguage;
+    ensureLanguageToggle();
+    updateLanguageToggle();
   }
 
   function init() {
-    applyLanguage();
+    if (currentLanguage === defaultLanguage) {
+      applyDefaultLanguageShell();
+    } else {
+      applyLanguage();
+    }
     observeChanges();
   }
 

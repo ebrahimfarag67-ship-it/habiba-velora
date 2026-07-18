@@ -10,13 +10,13 @@ export default function ProductPage({ initialProducts = [] }) {
       title={page.title}
       description={page.description}
       bodyHtml={page.bodyHtml}
-      scripts={['/tracking.js', '/script.js', '/product-page.js']}
+      scripts={['/tracking.js', '/script.js', '/product-page.js?v=20260615-order-ui-v2']}
       initialProducts={initialProducts}
       extraHead={
         <meta
           id="productOgImage"
           property="og:image"
-          content="/assets/habiba-velora-hero.jpg"
+          content=""
         />
       }
     />

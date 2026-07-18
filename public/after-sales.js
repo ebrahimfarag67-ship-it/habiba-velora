@@ -79,13 +79,8 @@
 
   function loadReturnRequests() {
     try {
-      const raw = localStorage.getItem(storageKeys.returnRequests);
-      if (!raw) {
-        return [];
-      }
-
-      const parsed = safeParse(raw, []);
-      return Array.isArray(parsed) ? parsed.map(normalizeRequest) : [];
+      localStorage.removeItem(storageKeys.returnRequests);
+      return [];
     } catch {
       return [];
     }
@@ -93,7 +88,7 @@
 
   function saveReturnRequests() {
     try {
-      localStorage.setItem(storageKeys.returnRequests, JSON.stringify(returnRequests));
+      localStorage.removeItem(storageKeys.returnRequests);
     } catch {
       // ignore
     }
@@ -167,6 +162,12 @@
   function getStatusLabel(status) {
     const labels = {
       pending: 'قيد المراجعة',
+      processing: 'جاري التجهيز',
+      shipped: 'تم الشحن',
+      delivered: 'تم التسليم',
+      return_requested: 'مرتجع',
+      cancelled: 'ملغي',
+      sent: 'تم الإرسال',
       approved: 'مقبول',
       rejected: 'مرفوض',
       processed: 'جارٍ التنفيذ',
@@ -176,8 +177,7 @@
   }
 
   function getRequestId() {
-    const nextNumber = returnRequests.length + 1;
-    return `RET-${String(nextNumber).padStart(4, '0')}`;
+    return `RET-${Date.now()}`;
   }
 
   function showToast(title, message, type = 'success') {
@@ -207,6 +207,23 @@
     ].join('');
   }
 
+  function renderAreas(governorate, selectedArea = '') {
+    if (!areaInput || areaInput.tagName !== 'SELECT') {
+      return;
+    }
+
+    const areas = governorateAreas[governorate] || [];
+    areaInput.innerHTML = [
+      '<option value="">اختر المنطقة / المركز</option>',
+      ...areas.map((area) => `<option value="${escapeHtml(area)}">${escapeHtml(area)}</option>`),
+    ].join('');
+
+    if (selectedArea && !areas.includes(selectedArea)) {
+      areaInput.append(new Option(selectedArea, selectedArea));
+    }
+    areaInput.value = selectedArea || '';
+  }
+
   function findOrder(query) {
     const normalizedQuery = normalize(query);
     if (!normalizedQuery) {
@@ -226,12 +243,58 @@
     }) || null;
   }
 
+  function rememberOrder(order) {
+    const normalizedOrder = normalizeOrder(order);
+    if (!normalizedOrder.id) {
+      return null;
+    }
+
+    orders = [
+      normalizedOrder,
+      ...orders.filter((item) => item.id !== normalizedOrder.id),
+    ].slice(0, 60);
+    return normalizedOrder;
+  }
+
+  async function fetchOrderFromServer(query) {
+    const normalizedQuery = String(query || '').trim();
+    if (!normalizedQuery) {
+      return null;
+    }
+
+    const response = await fetch(`/api/orders?q=${encodeURIComponent(normalizedQuery)}`, {
+      headers: { Accept: 'application/json' },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.order) {
+      return null;
+    }
+    return rememberOrder(payload.order);
+  }
+
+  async function submitReturnRequest(request) {
+    const response = await fetch('/api/return-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ returnRequest: request }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.message || 'تعذر إرسال طلب المرتجع.');
+    }
+    if (payload.order) {
+      rememberOrder(payload.order);
+    }
+    return payload;
+  }
+
   function fillFormFromOrder(order) {
     activeOrder = order;
     if (orderIdInput) orderIdInput.value = order.id;
     if (customerNameInput) customerNameInput.value = order.customer || '';
     if (customerPhoneInput) customerPhoneInput.value = order.phone || '';
     if (governorateSelect) governorateSelect.value = order.governorate || '';
+    renderAreas(order.governorate || '', order.area || '');
     if (areaInput) areaInput.value = order.area || '';
     if (addressInput) addressInput.value = order.address || '';
     renderPreview();
@@ -282,9 +345,7 @@
   }
 
   function renderEmptyState(message) {
-    preview.innerHTML = '';
     preview.closest('.return-summary-panel')?.classList.add('is-empty');
-    return;
     preview.innerHTML = `
       <div class="empty-state compact">
         <strong>${escapeHtml(message)}</strong>
@@ -294,8 +355,7 @@
   }
 
   function renderPreview() {
-    let previewData = buildPreviewOrder();
-    const latestRequest = returnRequests[0] || null;
+    const previewData = buildPreviewOrder();
     const hasDraftData = Boolean(
       previewData.orderId ||
       previewData.customer ||
@@ -307,19 +367,9 @@
       previewData.notes,
     );
 
-    if (!previewData.orderId && !activeOrder && !latestRequest) {
+    if (!previewData.orderId && !activeOrder) {
       renderEmptyState('ابدأ بالبحث عن الطلب أو املأ بيانات العميل مباشرة.');
       return;
-    }
-
-    if (!activeOrder && latestRequest && !hasDraftData) {
-      previewData = {
-        ...previewData,
-        ...latestRequest,
-        items: latestRequest.items || [],
-        total: latestRequest.total || 0,
-        orderStatus: latestRequest.orderStatus || 'pending',
-      };
     }
 
     preview.closest('.return-summary-panel')?.classList.remove('is-empty');
@@ -397,11 +447,6 @@
           </div>
         </div>
 
-        ${latestRequest ? `
-          <div class="return-footnote">
-            آخر طلب محفوظ: ${escapeHtml(latestRequest.id)} - ${escapeHtml(latestRequest.customer)} - ${escapeHtml(formatDateTime(latestRequest.createdAt))}
-          </div>
-        ` : ''}
       </article>
     `;
   }
@@ -419,7 +464,7 @@
     renderPreview();
   }
 
-  function handleLookup() {
+  async function handleLookup() {
     const query = String(lookupInput.value || '').trim();
     if (!query) {
       renderEmptyState('ابدأ بكتابة رقم الطلب أو اسم العميل لعرض بيانات المرتجع.');
@@ -427,7 +472,21 @@
       return;
     }
 
-    const order = findOrder(query);
+    let order = findOrder(query);
+    if (!order) {
+      const buttonText = lookupButton.textContent;
+      lookupButton.disabled = true;
+      lookupButton.textContent = 'جاري البحث...';
+      try {
+        order = await fetchOrderFromServer(query);
+      } catch {
+        order = null;
+      } finally {
+        lookupButton.disabled = false;
+        lookupButton.textContent = buttonText;
+      }
+    }
+
     if (!order) {
       activeOrder = null;
       renderPreview();
@@ -438,7 +497,7 @@
     fillFormFromOrder(order);
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     const data = readFormData();
@@ -447,7 +506,11 @@
       return;
     }
 
-    const matchedOrder = activeOrder || findOrder(data.orderId) || null;
+    let matchedOrder = activeOrder || findOrder(data.orderId) || null;
+    if (!matchedOrder) {
+      matchedOrder = await fetchOrderFromServer(data.orderId).catch(() => null);
+    }
+
     const request = normalizeRequest({
       id: getRequestId(),
       orderId: data.orderId,
@@ -466,14 +529,45 @@
       createdAt: new Date().toISOString(),
     });
 
-    returnRequests.unshift(request);
-    returnRequests = returnRequests.slice(0, 30);
-    saveReturnRequests();
-    renderPreview();
-    showToast('تم إرسال الطلب', `تم حفظ ${request.id} بنجاح.`, 'success');
+    const submitButton = event.submitter || form.querySelector('button[type="submit"]');
+    const submitText = submitButton?.textContent || '';
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = 'جاري إرسال المرتجع...';
+    }
+
+    try {
+      const payload = await submitReturnRequest(request);
+      const savedRequest = normalizeRequest({
+        ...request,
+        id: payload.returnRequestId || request.id,
+        status: 'sent',
+        orderStatus: payload.order?.status || 'return_requested',
+        items: payload.order?.items || request.items,
+        total: payload.order?.total || request.total,
+      });
+
+      returnRequests = [];
+      saveReturnRequests();
+      activeOrder = null;
+      form.reset();
+      lookupInput.value = '';
+      if (governorateSelect) governorateSelect.value = '';
+      renderAreas('');
+      renderEmptyState('تم إرسال طلب المرتجع. يمكنك إدخال طلب جديد الآن.');
+      showToast('تم إرسال المرتجع', `تم فتح متابعة ${savedRequest.id} في النظام والبوت.`, 'success');
+    } catch (error) {
+      showToast('تعذر إرسال المرتجع', error instanceof Error ? error.message : 'راجع البيانات وحاول مرة أخرى.', 'error');
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = submitText;
+      }
+    }
   }
 
   renderGovernorates();
+  renderAreas(governorateSelect?.value || '');
   renderPreview();
 
   lookupButton.addEventListener('click', handleLookup);

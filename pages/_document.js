@@ -16,8 +16,15 @@ class MyDocument extends Document {
 
     return (
       <Html lang="ar" dir="rtl">
-        <Head />
-        <body className={bodyClassName} data-page={bodyDataPage}>
+        <Head>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link
+            href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700&family=Cairo:wght@400;500;600;700&family=Cormorant+Garamond:wght@600;700&family=Kanit:wght@300;400;500;600;700;800;900&family=Manrope:wght@600;700&display=swap"
+            rel="stylesheet"
+          />
+        </Head>
+        <body className={bodyClassName} data-page={bodyDataPage} data-theme="dark">
           <Main />
           <NextScript />
         </body>

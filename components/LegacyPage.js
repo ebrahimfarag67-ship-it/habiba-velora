@@ -22,7 +22,7 @@ export default function LegacyPage({
       <Head>
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="theme-color" content="#f3e4d3" />
+        <meta name="theme-color" content="#03010A" />
         <link rel="icon" href="/assets/habibvelora-logo-transparent.png" type="image/png" />
         <link rel="apple-touch-icon" href="/assets/habibvelora-logo-transparent.png" />
         <title>{title}</title>
@@ -41,13 +41,12 @@ export default function LegacyPage({
         {initialStoreScript}
       </Script>
 
-      <Script src="/language.js" strategy="beforeInteractive" />
-
+      <Script src="/language.js" strategy="lazyOnload" />
       {scripts.map((src) => (
         <Script
           key={src}
           src={src}
-          strategy={src === '/script.js' ? 'beforeInteractive' : 'afterInteractive'}
+          strategy={src === '/tracking.js' ? 'lazyOnload' : 'afterInteractive'}
         />
       ))}
     </>

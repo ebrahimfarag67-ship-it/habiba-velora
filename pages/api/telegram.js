@@ -1,8 +1,7 @@
-import { publicBaseUrl, sendTelegramMessage, telegramConfigured } from '../../lib/telegram';
+import { findOrder, upsertOrder } from '../../lib/orders-store';
+import { createTelegramForumTopic, publicBaseUrl, sendTelegramMessage, telegramConfigured } from '../../lib/telegram';
 
-const labels = {
-  currency: 'ج.م',
-};
+const CURRENCY = 'ج.م';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -24,52 +23,15 @@ function code(value) {
 }
 
 function money(value) {
-  return `${Math.max(0, Math.round(Number(value) || 0)).toLocaleString('en-US')} ${labels.currency}`;
-}
-
-function paymentStatusMeta(status) {
-  return {
-    pending_review: { icon: '🟠', label: 'بانتظار مراجعة التحويل', action: 'راجع التحويل يدويًا قبل التجهيز' },
-    pending_gateway: { icon: '🟡', label: 'بانتظار تأكيد Paymob', action: 'لا تبدأ التجهيز قبل وصول تأكيد Paymob' },
-    cash_on_delivery: { icon: '⚪', label: 'الدفع عند الاستلام', action: 'التحصيل مع المندوب عند التسليم' },
-    not_required: { icon: '⚪', label: 'لا يحتاج تأكيد دفع', action: 'راجع طريقة الدفع عند الحاجة' },
-    confirmed: { icon: '🟢', label: 'تم تأكيد الدفع', action: 'جاهز للتجهيز والشحن' },
-    failed: { icon: '🔴', label: 'فشل أو رفض الدفع', action: 'لا تجهز الطلب قبل محاولة دفع ناجحة' },
-  }[status] || { icon: '⚪', label: status || 'غير محدد', action: 'راجع الطلب قبل التنفيذ' };
-}
-
-function statusKeyboard(order, baseUrl) {
-  const invoiceUrl = `${baseUrl}/invoice?o=${encodeURIComponent(order.id || '')}&t=${encodeURIComponent(order.deliveryToken || '')}`;
-  const scanUrl = `${baseUrl}/api/delivery-scan?o=${encodeURIComponent(order.id || '')}&t=${encodeURIComponent(order.deliveryToken || '')}`;
-  const keyboard = [];
-  if (order.paymentStatus === 'pending_review') {
-    keyboard.push([
-      { text: '✅ تأكيد الدفع يدويًا', callback_data: `payment|${order.id}|confirmed` },
-    ]);
-  }
-  keyboard.push(
-      [
-        { text: '⚙️ جاري التجهيز', callback_data: `status|${order.id}|processing` },
-        { text: '🚚 تم الشحن', callback_data: `status|${order.id}|shipped` },
-      ],
-      [
-        { text: '✅ تم التسليم', callback_data: `status|${order.id}|delivered` },
-        { text: '❌ إلغاء الطلب', callback_data: `status|${order.id}|cancelled` },
-      ],
-      [
-        { text: '🧾 الفاتورة', url: invoiceUrl },
-        { text: '📲 صفحة المندوب', url: scanUrl },
-      ],
-  );
-  return { inline_keyboard: keyboard };
+  return `${Math.max(0, Math.round(Number(value) || 0)).toLocaleString('en-US')} ${CURRENCY}`;
 }
 
 function field(label, value) {
-  return `▫️ <b>${escapeHtml(label)}</b>\n${escapeHtml(englishDigits(value || '-'))}`;
+  return `• <b>${escapeHtml(label)}:</b> ${escapeHtml(englishDigits(value || '-'))}`;
 }
 
 function codeField(label, value) {
-  return `▫️ <b>${escapeHtml(label)}</b>\n${code(value)}`;
+  return `• <b>${escapeHtml(label)}:</b> ${code(value)}`;
 }
 
 function section(title, rows) {
@@ -77,24 +39,60 @@ function section(title, rows) {
   return body ? `<b>${escapeHtml(title)}</b>\n${body}` : '';
 }
 
+function statusMeta(status) {
+  return {
+    pending_review: { label: 'بانتظار مراجعة التحويل', action: 'راجع التحويل قبل التجهيز.' },
+    pending_gateway: { label: 'بانتظار تأكيد Paymob', action: 'لا تبدأ التجهيز قبل تأكيد الدفع.' },
+    cash_on_delivery: { label: 'الدفع عند الاستلام', action: 'التحصيل عند التسليم.' },
+    not_required: { label: 'لا يحتاج تأكيد دفع', action: 'راجع الطلب عند الحاجة.' },
+    confirmed: { label: 'تم تأكيد الدفع', action: 'جاهز للتجهيز والشحن.' },
+    failed: { label: 'فشل أو رفض الدفع', action: 'لا تجهز الطلب قبل حل الدفع.' },
+  }[status] || { label: status || 'غير محدد', action: 'راجع الطلب قبل التنفيذ.' };
+}
+
+function statusKeyboard(order, baseUrl) {
+  const invoiceUrl = `${baseUrl}/invoice?o=${encodeURIComponent(order.id || '')}&t=${encodeURIComponent(order.deliveryToken || '')}`;
+  const scanUrl = `${baseUrl}/api/delivery-scan?o=${encodeURIComponent(order.id || '')}&t=${encodeURIComponent(order.deliveryToken || '')}`;
+  const keyboard = [];
+
+  if (order.paymentStatus === 'pending_review') {
+    keyboard.push([
+      { text: 'تأكيد الدفع يدويًا', callback_data: `payment|${order.id}|confirmed` },
+    ]);
+  }
+
+  keyboard.push(
+    [
+      { text: 'جاري التجهيز', callback_data: `status|${order.id}|processing` },
+      { text: 'تم الشحن', callback_data: `status|${order.id}|shipped` },
+    ],
+    [
+      { text: 'تم التسليم', callback_data: `status|${order.id}|delivered` },
+      { text: 'مرتجع', callback_data: `status|${order.id}|return_requested` },
+    ],
+    [
+      { text: 'إلغاء الطلب', callback_data: `status|${order.id}|cancelled` },
+    ],
+    [
+      { text: 'الفاتورة', url: invoiceUrl },
+      { text: 'صفحة المندوب', url: scanUrl },
+    ],
+  );
+
+  return { inline_keyboard: keyboard };
+}
+
 function productRows(items) {
-  if (!Array.isArray(items) || !items.length) return '';
+  if (!Array.isArray(items) || !items.length) return 'لا توجد منتجات مسجلة.';
   return items.map((item, index) => {
     const options = [item.option, item.color, item.size].filter(Boolean).join(' / ');
     const lineTotal = Math.max(0, Number(item.qty || 1) * Number(item.price || 0));
     return [
-      `▫️ <b>${englishDigits(index + 1)}. ${escapeHtml(item.name || 'منتج')}</b>`,
-      `   ${code(`${item.qty || 1} x ${money(item.price)}`)}  →  <b>${escapeHtml(money(lineTotal))}</b>`,
+      `${index + 1}. <b>${escapeHtml(item.name || 'منتج')}</b>`,
+      `   الكمية: ${code(item.qty || 1)} | السعر: ${code(money(item.price))} | الإجمالي: <b>${escapeHtml(money(lineTotal))}</b>`,
       options ? `   <i>${escapeHtml(englishDigits(options))}</i>` : '',
     ].filter(Boolean).join('\n');
-  }).join('\n\n');
-}
-
-function statusLine(paymentMeta) {
-  return [
-    `${paymentMeta.icon} <b>${escapeHtml(paymentMeta.label)}</b>`,
-    `🧭 <i>${escapeHtml(paymentMeta.action)}</i>`,
-  ].join('\n');
+  }).join('\n');
 }
 
 function orderTimestamp() {
@@ -107,6 +105,108 @@ function orderTimestamp() {
     minute: '2-digit',
     hour12: true,
   }).format(new Date());
+}
+
+function topicName(order) {
+  const customer = String(order.customer || 'عميل').trim();
+  const total = Math.max(0, Math.round(Number(order.total) || 0));
+  return `طلب ${order.id || '-'} | ${customer} | ${total} ج`.slice(0, 128);
+}
+
+function topicError(result) {
+  return result?.data?.description || result?.data?.error_code || result?.status || '';
+}
+
+async function ensureOrderTopic(order) {
+  const storedOrder = order.id ? await findOrder(order.id).catch(() => null) : null;
+  const existingThreadId = Number(storedOrder?.telegramThreadId || order.telegramThreadId || 0);
+  if (existingThreadId) {
+    return { storedOrder, messageThreadId: existingThreadId, mode: 'topic' };
+  }
+
+  const topic = await createTelegramForumTopic(topicName(order)).catch((error) => ({
+    ok: false,
+    data: { description: error instanceof Error ? error.message : 'topic creation failed' },
+  }));
+  const messageThreadId = Number(topic?.messageThreadId || 0);
+
+  if (storedOrder && messageThreadId) {
+    const updatedOrder = await upsertOrder({
+      ...storedOrder,
+      telegramThreadId: String(messageThreadId),
+      telegramThreadStatus: 'open',
+      telegramTopicName: topicName(order),
+      telegramTopicMode: 'topic',
+      telegramTopicError: '',
+    }).catch(() => storedOrder);
+    return { storedOrder: updatedOrder, messageThreadId, mode: 'topic' };
+  }
+
+  if (storedOrder) {
+    const updatedOrder = await upsertOrder({
+      ...storedOrder,
+      telegramThreadStatus: 'open',
+      telegramTopicMode: 'main_chat_reply',
+      telegramTopicError: topicError(topic) || 'لم يتم إنشاء Topic منفصل.',
+    }).catch(() => storedOrder);
+    return { storedOrder: updatedOrder, messageThreadId: null, mode: 'reply', topic };
+  }
+
+  return { storedOrder, messageThreadId: messageThreadId || null, mode: messageThreadId ? 'topic' : 'reply', topic };
+}
+
+function orderMessage(order, meta, itemsCount) {
+  return [
+    '<b>طلب جديد من Habiba Velora</b>',
+    '━━━━━━━━━━━━━━━━━━━━',
+    section('بيانات الطلب', [
+      codeField('رقم الطلب', order.id),
+      codeField('رقم الفاتورة', order.invoiceId),
+      codeField('عدد القطع', itemsCount ? `${itemsCount}` : '-'),
+      codeField('الإجمالي', money(order.total)),
+    ]),
+    '',
+    section('العميل والشحن', [
+      field('الاسم', order.customer),
+      codeField('الهاتف', order.phone),
+      field('العنوان', order.fullAddress),
+    ]),
+    '',
+    section('الدفع', [
+      field('الطريقة', order.payment),
+      field('الحالة', meta.label),
+      field('المطلوب', meta.action),
+      order.paymentReference ? codeField('كود الربط', order.paymentReference) : '',
+      order.paymentGateway ? field('البوابة', order.paymentGateway) : '',
+      order.paymentGatewayReference ? codeField('مرجع Paymob', order.paymentGatewayReference) : '',
+      order.paymentGatewayTransactionId ? codeField('عملية Paymob', order.paymentGatewayTransactionId) : '',
+      order.paymentGatewayMessage ? field('رسالة Paymob', order.paymentGatewayMessage) : '',
+      order.paymentPhone ? codeField('رقم التحويل', order.paymentPhone) : '',
+      order.paymentSenderPhone ? codeField('محفظة العميل', order.paymentSenderPhone) : '',
+      order.paymentTransactionId ? codeField('رقم العملية', order.paymentTransactionId) : '',
+    ]),
+    '',
+    section('المنتجات', [productRows(order.items)]),
+    '',
+    `وقت التسجيل: ${code(orderTimestamp())}`,
+  ].filter(Boolean).join('\n');
+}
+
+async function storeTelegramMessage(order, result, { messageThreadId, mode, topic }) {
+  const messageId = result?.data?.result?.message_id || null;
+  if (!order?.id) return;
+  const storedOrder = await findOrder(order.id).catch(() => null);
+  if (!storedOrder?.id) return;
+
+  await upsertOrder({
+    ...storedOrder,
+    telegramMessageId: messageId ? String(messageId) : String(storedOrder.telegramMessageId || ''),
+    telegramThreadId: messageThreadId ? String(messageThreadId) : String(storedOrder.telegramThreadId || ''),
+    telegramThreadStatus: 'open',
+    telegramTopicName: messageThreadId ? topicName(order) : String(storedOrder.telegramTopicName || ''),
+    telegramTopicMode: mode || (messageThreadId ? 'topic' : 'main_chat_reply'),
+    telegramTopicError: messageThreadId ? '' : (topicError(topic) || storedOrder.telegramTopicError || ''),
+  }).catch(() => {});
 }
 
 export default async function handler(request, response) {
@@ -123,46 +223,20 @@ export default async function handler(request, response) {
 
   const order = request.body?.order || {};
   const baseUrl = publicBaseUrl(request);
-  const paymentMeta = paymentStatusMeta(order.paymentStatus);
-  const products = productRows(order.items);
+  const topicState = await ensureOrderTopic(order);
+  const paymentMeta = statusMeta(order.paymentStatus);
   const itemsCount = Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0) : 0;
-  const text = [
-    '💎 <b>HabibaVelora Operations</b>',
-    `${code(`NEW ORDER • ${order.id || '-'}`)}`,
-    '━━━━━━━━━━━━━━━━━━━━',
-    statusLine(paymentMeta),
-    '',
-    section('🧾 ORDER SUMMARY', [
-      codeField('رقم الطلب', order.id),
-      codeField('رقم الفاتورة', order.invoiceId),
-      codeField('عدد القطع', itemsCount ? `${itemsCount}` : '-'),
-      codeField('الإجمالي', money(order.total)),
-    ]),
-    '',
-    section('👤 CUSTOMER', [
-      field('الاسم', order.customer),
-      codeField('الهاتف', order.phone),
-      field('العنوان', order.fullAddress),
-    ]),
-    '',
-    section('💳 PAYMENT', [
-      field('الطريقة', order.payment),
-      field('الحالة', `${paymentMeta.icon} ${paymentMeta.label}`),
-      order.paymentReference ? codeField('كود الربط', order.paymentReference) : '',
-      order.paymentGateway ? field('البوابة', order.paymentGateway) : '',
-      order.paymentGatewayReference ? codeField('مرجع Paymob', order.paymentGatewayReference) : '',
-      order.paymentGatewayTransactionId ? codeField('عملية Paymob', order.paymentGatewayTransactionId) : '',
-      order.paymentGatewayMessage ? field('رسالة Paymob', order.paymentGatewayMessage) : '',
-      order.paymentPhone ? codeField('رقم التحويل', order.paymentPhone) : '',
-      order.paymentSenderPhone ? codeField('محفظة العميل', order.paymentSenderPhone) : '',
-      order.paymentTransactionId ? codeField('رقم العملية', order.paymentTransactionId) : '',
-    ]),
-    '',
-    products ? `<b>📦 PRODUCTS</b>\n${products}` : '',
-    '',
-    `🕒 ${code(orderTimestamp())}`,
-  ].filter(Boolean).join('\n');
+  const result = await sendTelegramMessage(orderMessage(order, paymentMeta, itemsCount), statusKeyboard(order, baseUrl), {
+    parse_mode: 'HTML',
+    ...(topicState.messageThreadId ? { message_thread_id: topicState.messageThreadId } : {}),
+  });
 
-  const result = await sendTelegramMessage(text, statusKeyboard(order, baseUrl), { parse_mode: 'HTML' });
-  response.status(200).json(result);
+  await storeTelegramMessage(order, result, topicState);
+
+  response.status(200).json({
+    ...result,
+    messageThreadId: topicState.messageThreadId,
+    mode: topicState.mode,
+    topicError: topicError(topicState.topic),
+  });
 }

@@ -7,23 +7,24 @@
     orders: 'velora-store-v4-orders',
     notifications: 'velora-store-v4-notifications',
     returnRequests: 'velora-store-v4-return-requests',
-    adminAccess: 'velora-admin-access-v4-172005',
+    adminAccess: 'velora-admin-access-v5',
     theme: 'velora-store-v4-theme',
   };
 
-  const legacyStorageKeys = store.legacyStorageKeys || {
-    cart: ['velora-store-v3-cart', 'velora-store-v2-cart'],
-    wishlist: ['velora-store-v3-wishlist', 'velora-store-v2-wishlist'],
-    orders: ['velora-store-v3-orders', 'velora-store-v2-orders'],
-    notifications: ['velora-store-v3-notifications', 'velora-store-v2-notifications'],
-    returnRequests: ['velora-store-v3-return-requests', 'velora-store-v2-return-requests'],
-    adminAccess: ['velora-admin-access-v3-172005', 'velora-admin-access-v2-172005'],
-    theme: ['velora-store-v3-theme', 'velora-store-v2-theme'],
-  };
-
-  const adminCredentials = store.adminCredentials || { password: '172005' };
+  const adminCredentials = store.adminCredentials || {};
+  if (!adminCredentials.password) {
+    adminCredentials.password = '172005';
+  }
   const vodafoneCashNumber = '01024622437';
-  const defaultProducts = Array.isArray(store.products) ? store.products : [];
+  const initialProducts = Array.isArray(window.veloraInitialProducts) ? window.veloraInitialProducts : [];
+  const defaultProducts = Array.isArray(store.products) && store.products.length ? store.products : initialProducts;
+  const categoryStorageKey = 'velora-store-v4-categories';
+  const clearMarkerKeys = {
+    orders: `${storageKeys.orders}:cleared-at`,
+    notifications: `${storageKeys.notifications}:cleared-at`,
+  };
+  const ADMIN_ACCESS_MAX_AGE_MS = 1000 * 60 * 60 * 8;
+  const defaultAdminCategories = ['حلقان', 'سلاسل', 'انسيالات', 'خواتم', 'كفرات', 'أساور'];
   const egyptGovernorates = Array.isArray(store.governorates) && store.governorates.length
     ? store.governorates
     : [];
@@ -44,7 +45,6 @@
     brand: document.querySelector('.brand-block'),
     searchButton: document.getElementById('searchButton'),
     wishlistToggle: document.getElementById('wishlistToggle'),
-    themeToggle: document.getElementById('themeToggle'),
     cartJump: document.getElementById('cartJump'),
     cartCount: document.getElementById('cartCount'),
     cartDrawer: null,
@@ -81,6 +81,9 @@
     productId: document.getElementById('productId'),
     productName: document.getElementById('productName'),
     productCategory: document.getElementById('productCategory'),
+    newCategoryName: null,
+    addCategoryButton: null,
+    adminCategoryList: null,
     productBadge: document.getElementById('productBadge'),
     productFeatured: document.getElementById('productFeatured'),
     productNote: document.getElementById('productNote'),
@@ -129,10 +132,11 @@
     processing: { label: 'جارٍ التجهيز', step: 1, className: 'processing' },
     shipped: { label: 'تم الشحن', step: 2, className: 'shipped' },
     delivered: { label: 'تم التسليم', step: 3, className: 'delivered' },
+    return_requested: { label: 'مرتجع', step: -1, className: 'return-requested' },
     cancelled: { label: 'ملغي', step: -1, className: 'cancelled' },
   };
 
-  const statusOrder = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+  const statusOrder = ['pending', 'processing', 'shipped', 'delivered', 'return_requested', 'cancelled'];
 
   const returnRequestStatusMeta = {
     pending: { label: 'قيد المراجعة', className: 'pending' },
@@ -143,13 +147,14 @@
 
   const state = {
     products: [],
+    customCategories: [],
     productsDirty: false,
     cart: [],
     wishlist: [],
     orders: [],
     notifications: [],
     returnRequests: [],
-    theme: 'light',
+    theme: 'dark',
     filters: {
       query: '',
       category: 'all',
@@ -168,6 +173,13 @@
     activeIndex: 0,
     timer: null,
     signature: '',
+  };
+
+  const productCardSwipe = {
+    card: null,
+    productId: '',
+    startX: 0,
+    startY: 0,
   };
 
   function safeParse(json, fallback) {
@@ -191,27 +203,6 @@
     }
   }
 
-  function loadStoredValueWithFallback(primaryKey, fallbackKeys, fallback) {
-    const currentValue = loadStorage(primaryKey, null);
-    if (currentValue !== null && currentValue !== undefined) {
-      return currentValue;
-    }
-
-    for (const key of fallbackKeys || []) {
-      const legacyValue = loadStorage(key, null);
-      if (legacyValue !== null && legacyValue !== undefined) {
-        try {
-          localStorage.setItem(primaryKey, JSON.stringify(legacyValue));
-        } catch {
-          // ignore migration write failures
-        }
-        return legacyValue;
-      }
-    }
-
-    return cloneValue(fallback);
-  }
-
   function saveStorage(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
@@ -228,6 +219,68 @@
     } catch {
       // ignore unavailable storage
     }
+  }
+
+  function loadSessionStorage(key, fallback) {
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (raw === null || raw === '') {
+        return cloneValue(fallback);
+      }
+      return safeParse(raw, cloneValue(fallback));
+    } catch {
+      return cloneValue(fallback);
+    }
+  }
+
+  function saveSessionStorage(key, value) {
+    try {
+      sessionStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function removeSessionStorage(key) {
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      // ignore unavailable storage
+    }
+  }
+
+  function readClearMarker(type) {
+    try {
+      return Math.max(0, Number(localStorage.getItem(clearMarkerKeys[type]) || 0));
+    } catch {
+      return 0;
+    }
+  }
+
+  function writeClearMarker(type) {
+    const value = Date.now();
+    try {
+      localStorage.setItem(clearMarkerKeys[type], String(value));
+    } catch {
+      // If storage is unavailable the current in-memory clear still applies.
+    }
+    return value;
+  }
+
+  function clearStoredCollection(type) {
+    const key = storageKeys[type];
+    saveStorage(key, []);
+  }
+
+  function isAfterClearMarker(item, type) {
+    const marker = readClearMarker(type);
+    if (!marker) {
+      return true;
+    }
+
+    const timestamp = Date.parse(item?.createdAt || item?.updatedAt || '');
+    return Number.isFinite(timestamp) && timestamp > marker;
   }
 
   function cloneValue(value) {
@@ -249,6 +302,46 @@
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#39;');
+  }
+
+  function animatedButtonContent(label) {
+    const safeLabel = escapeHtml(label);
+
+    return `
+      <svg class="arr-1" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M13.5 5.5 20 12l-6.5 6.5-1.4-1.4 4.1-4.1H4v-2h12.2l-4.1-4.1 1.4-1.4Z" />
+      </svg>
+      <span class="circle" aria-hidden="true"></span>
+      <span class="text">${safeLabel}</span>
+      <svg class="arr-2" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M13.5 5.5 20 12l-6.5 6.5-1.4-1.4 4.1-4.1H4v-2h12.2l-4.1-4.1 1.4-1.4Z" />
+      </svg>
+    `;
+  }
+
+  function setAnimatedFlowButtonLabel(button, label) {
+    if (!button) {
+      return;
+    }
+
+    if (button.classList.contains('animated-flow-button')) {
+      button.innerHTML = animatedButtonContent(label);
+      return;
+    }
+
+    button.textContent = label;
+  }
+
+  function enhanceCheckoutButton() {
+    const button = elements.checkoutForm?.querySelector('button[type="submit"]');
+    if (!button || button.dataset.flowEnhanced === 'true') {
+      return;
+    }
+
+    const label = button.textContent.trim() || 'إتمام الطلب';
+    button.dataset.flowEnhanced = 'true';
+    button.classList.add('animated-flow-button', 'flow-checkout');
+    setAnimatedFlowButtonLabel(button, label);
   }
 
   function hasGarbledText(value) {
@@ -276,6 +369,121 @@
     }
 
     return category;
+  }
+
+  function categoryIdentity(value) {
+    return normalizeText(value)
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/\s+/g, '')
+      .toLowerCase();
+  }
+
+  function normalizeCategoryList(values) {
+    const categories = new Map();
+    (values || []).forEach((value) => {
+      const category = canonicalCategory(value);
+      const key = categoryIdentity(category);
+      if (key && !categories.has(key)) {
+        categories.set(key, category);
+      }
+    });
+    return Array.from(categories.values());
+  }
+
+  function loadCustomCategories() {
+    return normalizeCategoryList(loadStorage(categoryStorageKey, []));
+  }
+
+  function saveCustomCategories() {
+    return saveStorage(categoryStorageKey, state.customCategories);
+  }
+
+  function getAdminCategoryOptions(extra = '') {
+    return normalizeCategoryList([
+      ...defaultAdminCategories,
+      ...Array.from(elements.productCategory?.options || []).map((option) => option.value || option.textContent),
+      ...state.customCategories,
+      ...state.products.map((product) => product.category),
+      extra,
+    ]);
+  }
+
+  function renderProductCategoryOptions(selectedCategory = '') {
+    if (!elements.productCategory) {
+      return;
+    }
+
+    const currentValue = normalizeText(selectedCategory || elements.productCategory.value);
+    const options = getAdminCategoryOptions(currentValue);
+    elements.productCategory.innerHTML = options
+      .map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`)
+      .join('');
+    elements.productCategory.value = options.includes(currentValue) ? currentValue : (options[0] || '');
+  }
+
+  function renderAdminCategoryList() {
+    if (!elements.adminCategoryList) {
+      return;
+    }
+
+    const customCategories = normalizeCategoryList(state.customCategories);
+    elements.adminCategoryList.innerHTML = customCategories.length
+      ? customCategories.map((category) => `<span>${escapeHtml(category)}</span>`).join('')
+      : '<small>الأقسام الجديدة ستظهر هنا بعد إضافتها.</small>';
+  }
+
+  function ensureCategoryManager() {
+    if (!elements.productCategory || document.getElementById('adminCategoryManager')) {
+      return;
+    }
+
+    const field = elements.productCategory.closest('label');
+    if (!field) {
+      return;
+    }
+
+    const manager = document.createElement('div');
+    manager.id = 'adminCategoryManager';
+    manager.className = 'admin-category-manager';
+    manager.innerHTML = `
+      <div class="field-title">
+        <span>إضافة قسم جديد</span>
+      </div>
+      <div class="admin-category-row">
+        <input id="newCategoryName" type="text" placeholder="مثال: أطقم" maxlength="40" />
+        <button id="addCategoryButton" type="button" class="secondary-btn mini-btn">إضافة القسم</button>
+      </div>
+      <div id="adminCategoryList" class="admin-category-list" aria-live="polite"></div>
+    `;
+    field.insertAdjacentElement('afterend', manager);
+
+    elements.newCategoryName = document.getElementById('newCategoryName');
+    elements.addCategoryButton = document.getElementById('addCategoryButton');
+    elements.adminCategoryList = document.getElementById('adminCategoryList');
+    renderProductCategoryOptions();
+    renderAdminCategoryList();
+  }
+
+  function addCustomCategory() {
+    const category = canonicalCategory(elements.newCategoryName?.value);
+    if (!category || categoryIdentity(category).length < 2) {
+      showToast('اسم القسم مطلوب', 'اكتب اسم قسم واضح قبل الإضافة.', 'warning');
+      return;
+    }
+
+    const exists = getAdminCategoryOptions().some((item) => categoryIdentity(item) === categoryIdentity(category));
+    if (!exists) {
+      state.customCategories = normalizeCategoryList([...state.customCategories, category]);
+      saveCustomCategories();
+    }
+
+    renderProductCategoryOptions(category);
+    renderAdminCategoryList();
+    if (elements.newCategoryName) {
+      elements.newCategoryName.value = '';
+    }
+    showToast(exists ? 'القسم موجود بالفعل' : 'تمت إضافة القسم', `${category} جاهز لاستخدامه في المنتجات.`, exists ? 'warning' : 'success');
   }
 
   function defaultProductCopy(category) {
@@ -558,17 +766,33 @@
     });
   }
 
+  const imageCompression = {
+    targetBytes: 360 * 1024,
+    hardLimitBytes: 2600 * 1024,
+    maxSizes: [1280, 1080, 920, 820, 720, 620, 520, 420],
+    qualities: [0.78, 0.68, 0.58, 0.48, 0.38, 0.3, 0.24, 0.2],
+  };
+
+  function isUploadableImageType(type) {
+    return ['image/webp', 'image/png', 'image/jpeg'].includes(String(type || '').toLowerCase());
+  }
+
   async function compressImageFile(file) {
+    if (!file || !String(file.type || '').startsWith('image/')) {
+      throw new Error('image-compression-failed');
+    }
+
+    if (file.size <= imageCompression.targetBytes && isUploadableImageType(file.type)) {
+      return await fileToDataUrl(file);
+    }
+
     const originalUrl = URL.createObjectURL(file);
 
     try {
       const image = await loadImage(originalUrl);
-      const targetBytes = 220 * 1024;
-      const maxSizes = [820, 720, 620, 520, 420];
-      const qualitySteps = [0.64, 0.54, 0.44, 0.34, 0.26, 0.2];
       let bestBlob = null;
 
-      for (const maxSize of maxSizes) {
+      for (const maxSize of imageCompression.maxSizes) {
         const scale = Math.min(maxSize / image.width, maxSize / image.height, 1);
         const canvas = document.createElement('canvas');
         canvas.width = Math.max(1, Math.round(image.width * scale));
@@ -583,7 +807,7 @@
         context.imageSmoothingQuality = 'high';
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-        for (const quality of qualitySteps) {
+        for (const quality of imageCompression.qualities) {
           const blob = await new Promise((resolve) => {
             canvas.toBlob(resolve, 'image/webp', quality);
           });
@@ -596,19 +820,23 @@
             bestBlob = blob;
           }
 
-          if (blob.size <= targetBytes) {
+          if (blob.size <= imageCompression.targetBytes) {
             return await fileToDataUrl(blob);
           }
         }
       }
 
-      if (bestBlob && bestBlob.size < Math.min(file.size, 2 * 1024 * 1024)) {
+      if (bestBlob && bestBlob.size <= imageCompression.hardLimitBytes) {
         return await fileToDataUrl(bestBlob);
+      }
+
+      if (file.size <= imageCompression.hardLimitBytes && isUploadableImageType(file.type)) {
+        return await fileToDataUrl(file);
       }
 
       throw new Error('image-compression-failed');
     } catch {
-      if (file.size <= 450 * 1024) {
+      if (file.size <= 450 * 1024 && isUploadableImageType(file.type)) {
         return await fileToDataUrl(file);
       }
       throw new Error('image-compression-failed');
@@ -655,6 +883,262 @@
     if (product?.backImage) images.push(product.backImage);
     if (product?.sideImage) images.push(product.sideImage);
     return dedupeList(images.map((item) => normalizeText(item)).filter(Boolean));
+  }
+
+  function detectProductImageOrientation(image) {
+    if (!image || !image.naturalWidth || !image.naturalHeight) {
+      return '';
+    }
+
+    const ratio = image.naturalHeight / image.naturalWidth;
+    if (ratio >= 1.08) {
+      return 'portrait';
+    }
+    if (ratio <= 0.92) {
+      return 'landscape';
+    }
+    return 'square';
+  }
+
+  function setProductCardOrientation(image) {
+    const card = image?.closest?.('[data-product-id].product-card');
+    if (!card || card.dataset.imageOrientation) {
+      return false;
+    }
+
+    const orientation = detectProductImageOrientation(image);
+    if (!orientation) {
+      return false;
+    }
+
+    card.dataset.imageOrientation = orientation;
+    return true;
+  }
+
+  function getProductCardOrientationWeight(card) {
+    const orientation = card?.dataset?.imageOrientation || 'unknown';
+    if (orientation === 'portrait') return 0;
+    if (orientation === 'square') return 1;
+    if (orientation === 'landscape') return 2;
+    return 3;
+  }
+
+  function sortProductGridByOrientation(grid) {
+    if (!grid) {
+      return;
+    }
+
+    const cards = Array.from(grid.children).filter((card) => card.matches?.('[data-product-id].product-card'));
+    if (cards.length < 2) {
+      return;
+    }
+
+    cards.forEach((card, index) => {
+      if (!card.dataset.initialSortIndex) {
+        card.dataset.initialSortIndex = String(index);
+      }
+
+      const image = card.querySelector('[data-product-card-image]');
+      if (!card.dataset.imageOrientation && image?.complete) {
+        setProductCardOrientation(image);
+      }
+    });
+
+    const sortedCards = [...cards].sort((first, second) => {
+      const orientationDelta = getProductCardOrientationWeight(first) - getProductCardOrientationWeight(second);
+      if (orientationDelta !== 0) {
+        return orientationDelta;
+      }
+      return Number(first.dataset.initialSortIndex || 0) - Number(second.dataset.initialSortIndex || 0);
+    });
+
+    if (sortedCards.some((card, index) => card !== cards[index])) {
+      sortedCards.forEach((card) => grid.appendChild(card));
+    }
+  }
+
+  function scheduleProductGridOrientationSort(grid) {
+    if (!grid || grid.dataset.orientationSortQueued === 'true') {
+      return;
+    }
+
+    grid.dataset.orientationSortQueued = 'true';
+    window.requestAnimationFrame(() => {
+      delete grid.dataset.orientationSortQueued;
+      sortProductGridByOrientation(grid);
+    });
+  }
+
+  function isCompactViewport() {
+    return window.matchMedia?.('(max-width: 760px)').matches || window.innerWidth <= 760;
+  }
+
+  function setProductImageLoading(image) {
+    const media = image?.closest?.('.product-media');
+    if (!media) {
+      return;
+    }
+
+    media.classList.remove('loaded');
+    media.classList.add('is-loading');
+  }
+
+  function markProductImageReady(image) {
+    const media = image?.closest?.('.product-media');
+    if (!media) {
+      return;
+    }
+
+    media.classList.remove('is-loading');
+    media.classList.add('loaded');
+  }
+
+  function syncProductGridOrientations(grid) {
+    if (!grid || isCompactViewport()) {
+      return;
+    }
+
+    grid.querySelectorAll('[data-product-card-image]').forEach((image) => {
+      if (image.complete) {
+        setProductCardOrientation(image);
+      }
+    });
+    scheduleProductGridOrientationSort(grid);
+  }
+
+  function observeProductGridOrientations(grid) {
+    if (!grid || grid.dataset.orientationObserverReady === 'true' || isCompactViewport()) {
+      return;
+    }
+
+    grid.dataset.orientationObserverReady = 'true';
+    syncProductGridOrientations(grid);
+
+    if (!window.MutationObserver) {
+      return;
+    }
+
+    const observer = new MutationObserver(() => syncProductGridOrientations(grid));
+    observer.observe(grid, { childList: true });
+  }
+
+  function handleProductCardImageLoad(event) {
+    const image = event.target?.closest?.('[data-product-card-image]');
+    if (!image) {
+      return;
+    }
+
+    markProductImageReady(image);
+
+    if (isCompactViewport()) {
+      return;
+    }
+
+    if (!setProductCardOrientation(image)) {
+      return;
+    }
+
+    scheduleProductGridOrientationSort(image.closest('.product-grid'));
+  }
+
+  function handleProductCardImageError(event) {
+    const image = event.target?.closest?.('[data-product-card-image]');
+    if (!image) {
+      return;
+    }
+
+    if (image.dataset.fallbackApplied !== 'true') {
+      image.dataset.fallbackApplied = 'true';
+      image.src = '/assets/habibvelora-logo-transparent.png';
+      return;
+    }
+
+    markProductImageReady(image);
+  }
+
+  function getMobileMenuRoot() {
+    return (
+      document.querySelector('.clean-mobile-dock') ||
+      document.querySelector('[data-mobile-nav="language"]')?.closest('nav') ||
+      document.querySelector('#mobileNavLanguageToggle')?.closest('nav') ||
+      document.querySelector('.mobile-bottom-nav, .mobile-nav, .bottom-nav')
+    );
+  }
+
+  function syncMobileMenuActions() {
+    const nav = getMobileMenuRoot();
+    if (!nav || nav.dataset.storeMobileActionsReady === 'true') {
+      return;
+    }
+
+    nav.dataset.storeMobileActionsReady = 'true';
+
+    if (nav.classList.contains('clean-mobile-dock') || nav.classList.contains('mobile-bottom-nav')) {
+      return;
+    }
+
+    if (!nav.querySelector('[data-mobile-nav="search"], .clean-mobile-search-link')) {
+      const searchItem = nav.querySelector('a[href="/follow"], a[href="/#follow"]') || document.createElement('a');
+      searchItem.href = '/products';
+      searchItem.dataset.mobileNav = 'search';
+      searchItem.innerHTML = '<span>بحث</span>';
+      if (!searchItem.parentElement) {
+        nav.insertBefore(searchItem, nav.children[1] || null);
+      }
+    }
+
+  }
+
+  function buildProductCardGalleryControls(gallery) {
+    if (!gallery || gallery.length < 2) {
+      return '';
+    }
+
+    return `
+      <div class="product-card-gallery-controls" aria-label="صور المنتج">
+        <button type="button" class="product-card-gallery-button prev" data-action="card-gallery" data-direction="-1" aria-label="الصورة السابقة">‹</button>
+        <button type="button" class="product-card-gallery-button next" data-action="card-gallery" data-direction="1" aria-label="الصورة التالية">›</button>
+      </div>
+      <div class="product-card-gallery-dots" aria-label="اختيار صورة المنتج">
+        ${gallery.map((_, index) => `
+          <button type="button" class="${index === 0 ? 'active' : ''}" data-action="card-gallery" data-index="${index}" aria-label="صورة ${index + 1}"></button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function setProductCardGalleryImage(card, product, nextIndex) {
+    const gallery = getProductGallery(product);
+    if (!card || !product || gallery.length < 2) {
+      return;
+    }
+
+    const normalizedIndex = ((nextIndex % gallery.length) + gallery.length) % gallery.length;
+    const image = card.querySelector('[data-product-card-image]');
+    card.dataset.galleryIndex = String(normalizedIndex);
+
+    if (image) {
+      delete image.dataset.fallbackApplied;
+      delete card.dataset.imageOrientation;
+      setProductImageLoading(image);
+      image.src = gallery[normalizedIndex];
+      image.alt = `${product.name} - صورة ${normalizedIndex + 1}`;
+      image.classList.remove('gallery-switching');
+      void image.offsetWidth;
+      image.classList.add('gallery-switching');
+      window.setTimeout(() => {
+        image.classList.remove('gallery-switching');
+      }, 260);
+      window.requestAnimationFrame(() => {
+        if (image.complete) {
+          markProductImageReady(image);
+        }
+      });
+    }
+
+    card.querySelectorAll('.product-card-gallery-dots button').forEach((dot, index) => {
+      dot.classList.toggle('active', index === normalizedIndex);
+    });
   }
 
   function normalizeProductModels(models, gallery = []) {
@@ -722,15 +1206,33 @@
   }
 
   function smartBadge(product) {
-    if (toNumber(product?.stock, 0) > 0 && toNumber(product?.stock, 0) <= 3) {
+    const stock = toNumber(product?.stock, 0);
+    const rawBadge = normalizeText(product?.badge, '');
+    const normalizedBadge = rawBadge.replace(/[أإآ]/g, 'ا').toLowerCase();
+
+    if (normalizedBadge.includes('حجز') || normalizedBadge.includes('محجوز') || normalizedBadge.includes('pre')) {
+      return stock > 0
+        ? { label: availabilityLabel(stock), className: stock <= 3 ? 'urgent' : 'available' }
+        : { label: availabilityLabel(stock), className: 'sold' };
+    }
+    if (stock > 0 && stock <= 3) {
       return { label: '\u0622\u062e\u0631 \u0642\u0637\u0639', className: 'urgent' };
     }
     if (isNewProduct(product)) {
       return { label: '\u0648\u0635\u0644 \u062d\u062f\u064a\u062b\u064b\u0627', className: 'new' };
     }
+    if (!stock) {
+      return { label: availabilityLabel(stock), className: 'sold' };
+    }
+    if (rawBadge && !rawBadge.includes('متوفر')) {
+      return {
+        label: rawBadge,
+        className: rawBadge.includes('\u0645\u0645\u064a\u0632') ? 'hot' : '',
+      };
+    }
     return {
-      label: normalizeText(product?.badge, '\u0645\u0645\u064a\u0632'),
-      className: String(product?.badge || '').includes('\u0645\u0645\u064a\u0632') ? 'hot' : '',
+      label: availabilityLabel(stock),
+      className: 'available',
     };
   }
 
@@ -835,7 +1337,7 @@
 
     return {
       id: normalizeText(order?.id, `VEL-${String(nextOrderNumber(state.orders)).padStart(4, '0')}`),
-      invoiceId: normalizeText(order?.invoiceId, `INV-${String(String(order?.id || '').replace(/\D/g, '') || nextOrderNumber(state.orders)).padStart(4, '0')}`),
+      invoiceId: normalizeText(order?.invoiceId, String(String(order?.id || '').replace(/\D/g, '') || nextOrderNumber(state.orders)).padStart(8, '0')),
       customer: normalizeText(order?.customer, 'عميل'),
       phone: normalizeText(order?.phone, ''),
       address: normalizeText(order?.address, ''),
@@ -898,7 +1400,7 @@
   }
 
   function loadProducts() {
-    const stored = loadStoredValueWithFallback(storageKeys.products, legacyStorageKeys.products || [], null);
+    const stored = loadStorage(storageKeys.products, null);
     if (Array.isArray(stored) && stored.length) {
       return stored.map((product, index) => normalizeProduct(product, index));
     }
@@ -917,12 +1419,16 @@
 
   function loadOrders() {
     const stored = loadStorage(storageKeys.orders, []);
-    return Array.isArray(stored) ? stored.map(normalizeOrder) : [];
+    return Array.isArray(stored)
+      ? stored.filter((order) => isAfterClearMarker(order, 'orders')).map(normalizeOrder)
+      : [];
   }
 
   function loadNotifications() {
     const stored = loadStorage(storageKeys.notifications, []);
-    return Array.isArray(stored) ? stored.map(normalizeNotification) : [];
+    return Array.isArray(stored)
+      ? stored.filter((notification) => isAfterClearMarker(notification, 'notifications')).map(normalizeNotification)
+      : [];
   }
 
   function loadReturnRequests() {
@@ -931,17 +1437,23 @@
   }
 
   function loadTheme() {
-    const stored = loadStorage(storageKeys.theme, '');
-    if (stored === 'dark' || stored === 'light') {
-      return stored;
-    }
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    saveStorage(storageKeys.theme, 'dark');
+    return 'dark';
   }
 
   function loadAdminAccess() {
     removeStorage(storageKeys.adminAccess);
-    (legacyStorageKeys.adminAccess || []).forEach(removeStorage);
-    return false;
+    const session = loadSessionStorage(storageKeys.adminAccess, null);
+    const unlockedAt = Number(session?.unlockedAt || 0);
+    const password = normalizeText(session?.password, '');
+
+    if (!password || !unlockedAt || Date.now() - unlockedAt > ADMIN_ACCESS_MAX_AGE_MS) {
+      removeSessionStorage(storageKeys.adminAccess);
+      return false;
+    }
+
+    adminCredentials.password = password;
+    return true;
   }
 
   async function saveProducts(options = {}) {
@@ -1027,6 +1539,8 @@
 
     state.products = result.products.map((product, index) => normalizeProduct(product, index));
     saveStorage(storageKeys.products, state.products);
+    renderProductCategoryOptions();
+    renderAdminCategoryList();
     syncCartWithInventory();
     applyRouteFilters();
     renderAll();
@@ -1080,6 +1594,37 @@
     }
   }
 
+  async function persistSingleOrderToDatabase(order) {
+    const response = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.order) {
+      throw new Error(payload.message || 'order save failed');
+    }
+    return normalizeOrder(payload.order);
+  }
+
+  async function persistOrderUpdateToDatabase(order) {
+    const response = await fetch('/api/orders', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-password': adminCredentials.password,
+      },
+      body: JSON.stringify({ order }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.order) {
+      throw new Error(payload.message || 'order update failed');
+    }
+    return normalizeOrder(payload.order);
+  }
+
   function saveOrders() {
     const saved = saveStorage(storageKeys.orders, state.orders);
     persistOrdersToDatabase().catch(() => {
@@ -1089,8 +1634,9 @@
   }
 
 
-  async function deleteOrdersFromDatabase() {
-    const response = await fetch('/api/orders', {
+  async function deleteOrdersFromDatabase(before = 0) {
+    const query = before ? `?before=${encodeURIComponent(String(before))}` : '';
+    const response = await fetch(`/api/orders${query}`, {
       method: 'DELETE',
       headers: {
         'x-admin-password': adminCredentials.password,
@@ -1103,30 +1649,46 @@
   }
 
   async function clearAllOrders() {
-    if (!state.orders.length) {
-      showToast('\u0644\u0627 \u062a\u0648\u062c\u062f \u0637\u0644\u0628\u0627\u062a', '\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0637\u0644\u0628\u0627\u062a \u0641\u0627\u0631\u063a\u0629 \u0628\u0627\u0644\u0641\u0639\u0644.', 'info');
-      return;
-    }
-
+    const hadOrders = state.orders.length > 0;
     state.ordersCleared = true;
+    const clearedAt = writeClearMarker('orders');
     state.orders = [];
-    saveStorage(storageKeys.orders, state.orders);
+    clearStoredCollection('orders');
     renderOrders();
     renderSummary();
 
+    if (elements.clearOrdersButton) {
+      elements.clearOrdersButton.disabled = true;
+    }
+
     try {
-      await deleteOrdersFromDatabase();
-      showToast('\u062a\u0645 \u0645\u0633\u062d \u0627\u0644\u0637\u0644\u0628\u0627\u062a', '\u062a\u0645 \u062d\u0630\u0641 \u0643\u0644 \u0627\u0644\u0637\u0644\u0628\u0627\u062a \u0646\u0647\u0627\u0626\u064a\u0627.', 'success');
+      await deleteOrdersFromDatabase(clearedAt);
+      showToast(
+        hadOrders ? '\u062a\u0645 \u0645\u0633\u062d \u0627\u0644\u0637\u0644\u0628\u0627\u062a' : '\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0637\u0644\u0628\u0627\u062a \u0641\u0627\u0631\u063a\u0629',
+        hadOrders ? '\u062a\u0645 \u062d\u0630\u0641 \u0643\u0644 \u0627\u0644\u0637\u0644\u0628\u0627\u062a \u0646\u0647\u0627\u0626\u064a\u0627.' : '\u062b\u0628\u062a\u0646\u0627 \u062d\u0627\u0644\u0629 \u0627\u0644\u0645\u0633\u062d \u0648\u0644\u0646 \u062a\u0638\u0647\u0631 \u0637\u0644\u0628\u0627\u062a \u0642\u062f\u064a\u0645\u0629.',
+        'success',
+      );
     } catch (error) {
-      state.ordersCleared = false;
-      showToast('\u062a\u0639\u0630\u0631 \u0645\u0633\u062d \u0627\u0644\u0637\u0644\u0628\u0627\u062a', '\u0631\u0627\u062c\u0639 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u062b\u0645 \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.', 'error');
-      syncOrdersFromDatabase();
+      showToast('\u062a\u0645 \u0625\u062e\u0641\u0627\u0621 \u0627\u0644\u0637\u0644\u0628\u0627\u062a \u0645\u062d\u0644\u064a\u0627', '\u0647\u0646\u062d\u0627\u0648\u0644 \u062d\u0630\u0641 \u0646\u0633\u062e\u0629 \u0627\u0644\u0633\u064a\u0631\u0641\u0631 \u062a\u0627\u0646\u064a \u0639\u0646\u062f \u0641\u062a\u062d \u0627\u0644\u0644\u0648\u062d\u0629.', 'warning');
+    } finally {
+      if (elements.clearOrdersButton) {
+        elements.clearOrdersButton.disabled = false;
+      }
     }
   }
 
-  async function fetchOrdersFromDatabase() {
+  async function fetchOrdersFromDatabase(password = adminCredentials.password) {
+    if (!password) {
+      return [];
+    }
+
     try {
-      const response = await fetch('/api/orders', { cache: 'no-store' });
+      const response = await fetch('/api/orders', {
+        cache: 'no-store',
+        headers: {
+          'x-admin-password': password,
+        },
+      });
       if (!response.ok) return [];
       const payload = await response.json();
       return Array.isArray(payload.orders) ? payload.orders : [];
@@ -1136,14 +1698,28 @@
   }
 
   async function syncOrdersFromDatabase() {
-    if (state.ordersCleared) {
+    const remoteOrders = await fetchOrdersFromDatabase();
+    if (!remoteOrders.length) return;
+
+    const visibleRemoteOrders = remoteOrders
+      .filter((order) => isAfterClearMarker(order, 'orders'))
+      .map(normalizeOrder);
+
+    const clearedAt = readClearMarker('orders');
+    if (visibleRemoteOrders.length !== remoteOrders.length && adminCredentials.password && clearedAt) {
+      deleteOrdersFromDatabase(clearedAt).catch(() => {});
+    }
+
+    if (!visibleRemoteOrders.length) {
+      state.orders = state.orders.filter((order) => isAfterClearMarker(order, 'orders'));
+      saveStorage(storageKeys.orders, state.orders);
+      renderOrders();
+      renderSummary();
       return;
     }
 
-    const remoteOrders = await fetchOrdersFromDatabase();
-    if (!remoteOrders.length) return;
     const orderMap = new Map(state.orders.map((order) => [order.id, order]));
-    remoteOrders.map(normalizeOrder).forEach((order) => orderMap.set(order.id, order));
+    visibleRemoteOrders.forEach((order) => orderMap.set(order.id, order));
     state.orders = [...orderMap.values()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     saveStorage(storageKeys.orders, state.orders);
     renderOrders();
@@ -1206,8 +1782,15 @@
 
   function saveAdminAccess() {
     removeStorage(storageKeys.adminAccess);
-    (legacyStorageKeys.adminAccess || []).forEach(removeStorage);
-    return true;
+    if (!adminCredentials.password) {
+      removeSessionStorage(storageKeys.adminAccess);
+      return false;
+    }
+
+    return saveSessionStorage(storageKeys.adminAccess, {
+      password: adminCredentials.password,
+      unlockedAt: Date.now(),
+    });
   }
 
   function getProduct(productId) {
@@ -1245,6 +1828,28 @@
     return String(number).padStart(4, '0');
   }
 
+  function randomToken(length = 8) {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const bytes = new Uint8Array(length);
+    if (window.crypto?.getRandomValues) {
+      window.crypto.getRandomValues(bytes);
+    } else {
+      for (let index = 0; index < bytes.length; index += 1) {
+        bytes[index] = Math.floor(Math.random() * 256);
+      }
+    }
+    return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('');
+  }
+
+  function createOrderIdentity() {
+    const orderId = `${Date.now()}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+    const invoiceId = `${Date.now()}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+    return {
+      orderId,
+      invoiceId,
+    };
+  }
+
   function createDeliveryToken() {
     const bytes = new Uint8Array(12);
     if (window.crypto?.getRandomValues) {
@@ -1255,9 +1860,8 @@
   }
 
   function createPaymentReference(orderId) {
-    const digits = String(orderId || '').replace(/\D/g, '').slice(-4).padStart(4, '0');
-    const random = Math.floor(100 + Math.random() * 900);
-    return `HV-${digits}-${random}`;
+    const suffix = String(orderId || '').replace(/[^A-Z0-9]/gi, '').slice(-6).toUpperCase() || randomToken(6);
+    return `HV-${suffix}-${randomToken(3)}`;
   }
 
   function createDraftPaymentReference() {
@@ -1266,12 +1870,33 @@
     return `HV-${bucket}-${random}`;
   }
 
+  function cashOnDeliveryPayment() {
+    return '\u0639\u0646\u062f \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645';
+  }
+
+  function lockPaymentMethodToCash() {
+    const select = elements.paymentMethod;
+    if (!select) return;
+
+    const cashValue = cashOnDeliveryPayment();
+    if (![...select.options].some((option) => option.value === cashValue)) {
+      select.insertBefore(new Option(cashValue, cashValue), select.firstChild);
+    }
+
+    [...select.options].forEach((option) => {
+      if (option.value !== cashValue) {
+        option.remove();
+      }
+    });
+    select.value = cashValue;
+  }
+
   function isVodafoneCashPayment(payment) {
-    return normalizeText(payment) === 'فودافون كاش';
+    return false;
   }
 
   function isCardGatewayPayment(payment) {
-    return normalizeText(payment) === 'فيزا / ماستر كارد';
+    return false;
   }
 
   function isGatewayPayment(payment) {
@@ -1328,6 +1953,7 @@
   }
 
   function updatePaymentProofFields() {
+    lockPaymentMethodToCash();
     ensurePaymentProofFields();
     if (!elements.paymentProofPanel) {
       return;
@@ -1430,7 +2056,7 @@
         <span>تم التسليم</span>
       </div>
       <div class="order-success-actions">
-        <a class="primary-btn" href="${escapeHtml(orderTrackingUrl(order))}">\u0645\u062a\u0627\u0628\u0639\u0629 \u0627\u0644\u0637\u0644\u0628</a>
+        <a class="primary-btn animated-flow-button flow-track" href="${escapeHtml(orderTrackingUrl(order))}">${animatedButtonContent('متابعة الطلب')}</a>
         <a class="secondary-btn" href="/#collection">\u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0644\u0645\u062a\u062c\u0631</a>
       </div>
     `;
@@ -1647,21 +2273,10 @@
   }
 
   function setTheme(theme) {
-    state.theme = theme === 'dark' ? 'dark' : 'light';
+    state.theme = 'dark';
     document.body.dataset.theme = state.theme;
     saveTheme();
 
-    if (elements.themeToggle) {
-      const icon = elements.themeToggle.querySelector('span');
-      const label = elements.themeToggle.querySelector('small');
-      if (icon) {
-        icon.textContent = '';
-      }
-      if (label) {
-        label.textContent = state.theme === 'dark' ? 'فاتح' : 'داكن';
-      }
-      elements.themeToggle.setAttribute('aria-pressed', state.theme === 'dark' ? 'true' : 'false');
-    }
   }
 
   function setDashboardVisible(visible) {
@@ -1735,189 +2350,6 @@
     handleAdminShortcut(event, 3);
   }
 
-  function handleHeroAdminShortcut(event) {
-    if (window.matchMedia && !window.matchMedia('(max-width: 768px)').matches) {
-      return;
-    }
-    handleAdminShortcut(event, 8);
-  }
-
-  function getCategoryButtonImage(category) {
-    if (!elements.categoryFilters) {
-      return '';
-    }
-
-    const button = Array.from(elements.categoryFilters.querySelectorAll('[data-category]'))
-      .find((item) => canonicalCategory(item.dataset.category || 'all', 'all') === category);
-    const image = normalizeText(button?.querySelector('img')?.getAttribute('src'));
-    if (!image || image.includes('habibvelora-logo-transparent')) {
-      return '';
-    }
-    return image;
-  }
-
-  function buildDynamicHeroItems() {
-    const categoryItems = getCategoryItems({ includeProductCategories: true })
-      .map((category, index) => {
-        const products = productsForCategory(category.value).filter((product) => product.stock !== 0);
-        const product = rotateProductsForCategory(products, `${category.value}-${Math.floor(Date.now() / 45000)}`, 1)[0]
-          || products.find((item) => getProductGallery(item).length)
-          || products[0]
-          || null;
-        const image = getProductGallery(product)[0] || getCategoryButtonImage(category.value);
-        if (!image) {
-          return null;
-        }
-
-        return {
-          product,
-          image,
-          tone: getTone(product?.tone ?? index),
-        };
-      })
-      .filter(Boolean);
-
-    const items = categoryItems.length
-      ? categoryItems
-      : [
-          { product: { name: 'HabibaVelora', tone: 0 }, image: '/assets/habiba-velora-hero.jpg' },
-          { product: { name: 'HabibaVelora', tone: 1 }, image: '/assets/habiba-velora-hero-dark.jpg' },
-        ];
-
-    return items.slice(0, 10).map((item, index) => {
-      const tone = getTone(item.product?.tone ?? index);
-      const productName = normalizeText(item.product?.name, 'HabibaVelora');
-      return {
-        id: `${normalizeText(item.product?.id, 'hero')}-${index}`,
-        productName,
-        image: item.image,
-        sideImages: items
-          .map((sideItem) => sideItem.image)
-          .filter((image) => image && image !== item.image)
-          .slice(0, 2),
-        tone,
-      };
-    });
-  }
-
-  function updateDynamicHeroCopy(hero, items, nextIndex) {
-    const item = items[nextIndex];
-    if (!item) {
-      return;
-    }
-
-    dynamicHeroState.activeIndex = nextIndex;
-    hero.style.setProperty('--hero-tone-from', item.tone.from);
-    hero.style.setProperty('--hero-tone-to', item.tone.to);
-    hero.style.setProperty('--hero-tone-glow', item.tone.glow);
-    hero.style.setProperty('--hero-active-index', nextIndex);
-
-    hero.querySelectorAll('[data-hero-panel]').forEach((panel, index) => {
-      panel.classList.toggle('active', index === nextIndex);
-      panel.setAttribute('aria-hidden', index === nextIndex ? 'false' : 'true');
-    });
-    hero.querySelectorAll('[data-hero-dot]').forEach((button, index) => {
-      const active = index === nextIndex;
-      button.classList.toggle('active', active);
-      button.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
-  }
-
-  function renderDynamicHero() {
-    const hero = document.querySelector('.hero-showcase');
-    const slides = hero?.querySelector('.hero-slides');
-    const overlay = hero?.querySelector('.hero-overlay');
-    if (!hero || !slides || !overlay || document.body?.dataset.page !== 'home') {
-      return;
-    }
-
-    const items = buildDynamicHeroItems();
-    if (!items.length) {
-      return;
-    }
-
-    const signature = items.map((item) => `${item.id}:${item.image}:${item.productName}`).join('|');
-    if (dynamicHeroState.signature === signature && hero.classList.contains('dynamic-category-hero')) {
-      updateDynamicHeroCopy(hero, items, Math.min(dynamicHeroState.activeIndex, items.length - 1));
-      return;
-    }
-
-    dynamicHeroState.signature = signature;
-    dynamicHeroState.activeIndex = 0;
-    hero.classList.add('dynamic-category-hero');
-    hero.classList.add('dynamic-product-hero');
-    hero.dataset.heroItems = String(items.length);
-
-    slides.innerHTML = items.map((item, index) => `
-        <article class="hero-slide dynamic-hero-slide${index === 0 ? ' active' : ''}" data-hero-panel aria-hidden="${index === 0 ? 'false' : 'true'}">
-          <span class="dynamic-hero-bg">
-            <img src="${escapeHtml(item.image)}" alt="" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index === 0 ? 'high' : 'auto'}" />
-          </span>
-          <span class="dynamic-hero-word" aria-hidden="true">HABIBAVELORA</span>
-          <span class="dynamic-hero-product">
-            <img class="dynamic-hero-main-img" src="${escapeHtml(item.image)}" alt="${escapeHtml(item.productName)}" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index === 0 ? 'high' : 'auto'}" />
-          </span>
-          <span class="dynamic-hero-side-products" aria-hidden="true">
-            ${(item.sideImages || []).map((image, imageIndex) => `
-              <img src="${escapeHtml(image)}" alt="" loading="lazy" decoding="async" style="--side-index:${imageIndex}" />
-            `).join('')}
-          </span>
-        </article>
-      `).join('');
-
-    overlay.innerHTML = `
-      <div class="dynamic-hero-image-controls" aria-label="صور المنتجات المتحركة">
-        <div class="dynamic-hero-arrows" aria-hidden="true">
-          <span>‹</span>
-          <span>›</span>
-        </div>
-        <a class="dynamic-hero-shop" href="#collection">Shop Now</a>
-        <div class="dynamic-hero-dots" aria-label="تبديل صور الواجهة">
-        ${items.map((item, index) => `
-          <button type="button" data-hero-dot="${index}" aria-label="صورة ${index + 1}" aria-pressed="${index === 0 ? 'true' : 'false'}"></button>
-        `).join('')}
-        </div>
-      </div>
-    `;
-
-    overlay.querySelectorAll('[data-hero-dot]').forEach((button) => {
-      button.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const nextIndex = Number(button.dataset.heroDot || 0);
-        updateDynamicHeroCopy(hero, items, nextIndex);
-      });
-    });
-
-    updateDynamicHeroCopy(hero, items, 0);
-
-    window.clearInterval(dynamicHeroState.timer);
-    dynamicHeroState.timer = window.setInterval(() => {
-      const nextIndex = (dynamicHeroState.activeIndex + 1) % items.length;
-      updateDynamicHeroCopy(hero, items, nextIndex);
-    }, 4200);
-  }
-
-  function initHeroSlides() {
-    renderDynamicHero();
-
-    const slides = Array.from(document.querySelectorAll('.hero-slide'));
-    if (document.querySelector('.hero-showcase.dynamic-category-hero') || slides.length < 2) {
-      return;
-    }
-
-    let activeIndex = Math.max(0, slides.findIndex((slide) => slide.classList.contains('active')));
-    slides.forEach((slide, index) => {
-      slide.classList.toggle('active', index === activeIndex);
-    });
-
-    window.setInterval(() => {
-      slides[activeIndex]?.classList.remove('active');
-      activeIndex = (activeIndex + 1) % slides.length;
-      slides[activeIndex]?.classList.add('active');
-    }, 3000);
-  }
-
   function openAdminGate() {
     if (!elements.adminGate) {
       return;
@@ -1946,7 +2378,7 @@
     }
   }
 
-  function unlockAdmin() {
+  async function unlockAdmin() {
     const value = normalizeText(elements.adminPassword?.value);
     if (!value) {
       if (elements.adminGateHint) {
@@ -1955,12 +2387,60 @@
       return;
     }
 
-    if (value !== adminCredentials.password) {
+    const previousPassword = adminCredentials.password;
+    let verified = false;
+    let remoteOrders = [];
+
+    if (elements.adminUnlockButton) {
+      elements.adminUnlockButton.disabled = true;
+    }
+    if (elements.adminGateHint) {
+      elements.adminGateHint.textContent = '\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0642\u0642...';
+    }
+
+    try {
+      const response = await fetch('/api/orders', {
+        cache: 'no-store',
+        headers: {
+          'x-admin-password': value,
+        },
+      });
+      verified = response.ok;
+      if (verified) {
+        const payload = await response.json().catch(() => ({}));
+        remoteOrders = Array.isArray(payload.orders) ? payload.orders : [];
+      }
+    } catch {
+      verified = false;
+    }
+
+    if (elements.adminUnlockButton) {
+      elements.adminUnlockButton.disabled = false;
+    }
+
+    if (!verified) {
+      adminCredentials.password = previousPassword || '';
+      removeSessionStorage(storageKeys.adminAccess);
       if (elements.adminGateHint) {
         elements.adminGateHint.textContent = 'كلمة المرور غير صحيحة.';
       }
       showToast('تعذر الفتح', 'كلمة المرور غير صحيحة.', 'warning');
       return;
+    }
+
+    adminCredentials.password = value;
+    if (remoteOrders.length) {
+      const orderMap = new Map(state.orders.map((order) => [order.id, order]));
+      const visibleRemoteOrders = remoteOrders
+        .filter((order) => isAfterClearMarker(order, 'orders'))
+        .map(normalizeOrder);
+      const clearedAt = readClearMarker('orders');
+      if (visibleRemoteOrders.length !== remoteOrders.length && clearedAt) {
+        deleteOrdersFromDatabase(clearedAt).catch(() => {});
+      }
+      visibleRemoteOrders.forEach((order) => orderMap.set(order.id, order));
+      state.orders = [...orderMap.values()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      saveStorage(storageKeys.orders, state.orders);
     }
 
     state.adminUnlocked = true;
@@ -2010,7 +2490,7 @@
     }
     document.querySelectorAll('[data-mobile-cart-count]').forEach((badge) => {
       badge.textContent = formatCount(count);
-      badge.hidden = count <= 0;
+      badge.hidden = false;
     });
     if (elements.wishlistToggle) {
       const small = elements.wishlistToggle.querySelector('small');
@@ -2129,46 +2609,6 @@
     return sortProducts(filtered);
   }
 
-  function getCategoryItems(options = {}) {
-    if (!elements.categoryFilters) {
-      return [];
-    }
-
-    const includeAll = Boolean(options.includeAll);
-    const includeProductCategories = Boolean(options.includeProductCategories);
-    const items = Array.from(elements.categoryFilters.querySelectorAll('[data-category]'))
-      .map((button) => ({
-        value: canonicalCategory(button.dataset.category || 'all', 'all'),
-        title: normalizeText(button.querySelector('strong')?.textContent || button.dataset.category),
-        description: normalizeText(button.querySelector('span')?.textContent || ''),
-      }))
-      .filter((item) => item.value && (includeAll || item.value !== 'all'));
-
-    if (includeProductCategories) {
-      state.products.forEach((product) => {
-        const category = canonicalCategory(product.category);
-        if (!category || category === 'all' || items.some((item) => item.value === category)) {
-          return;
-        }
-
-        items.push({
-          value: category,
-          title: category,
-          description: 'كل الموجود في القسم',
-        });
-      });
-    }
-
-    return items;
-  }
-
-  function shouldRenderCategoryShowcase() {
-    return state.filters.category === 'all'
-      && !state.filters.wishlistOnly
-      && !normalizeText(state.filters.query)
-      && state.filters.showcaseOnly;
-  }
-
   function productsForCategory(category) {
     const normalizedCategory = canonicalCategory(category, 'all');
     if (normalizedCategory === 'all') {
@@ -2178,69 +2618,45 @@
     return sortProducts(state.products.filter((product) => product.category === normalizedCategory));
   }
 
-  function rotateProductsForCategory(products, category, limit = 2) {
-    if (!Array.isArray(products) || products.length <= limit) {
-      return products;
-    }
-
-    const featured = products.filter((product) => product.featured);
-    const regular = products.filter((product) => !product.featured);
-    const picked = shuffleProducts(featured).slice(0, limit);
-
-    if (picked.length >= limit) {
-      return picked;
-    }
-
-    shuffleProducts(regular).some((product) => {
-      if (!picked.some((item) => item.id === product.id)) {
-        picked.push(product);
-      }
-      return picked.length >= limit;
-    });
-
-    return picked.length ? picked : shuffleProducts(products).slice(0, limit);
-  }
-
-  function shuffleProducts(products) {
-    return [...products].sort(() => Math.random() - 0.5);
-  }
-
   function ensureMobileBottomNav() {
     if (document.querySelector('.mobile-bottom-nav')) {
       return;
     }
 
-    if (!document.body || document.body.dataset.page === 'admin') {
+    if (
+      !document.body ||
+      ['admin', 'category', 'products', 'product'].includes(document.body.dataset.page)
+    ) {
       return;
     }
 
     const bottomNav = document.createElement('nav');
-    bottomNav.className = 'mobile-bottom-nav no-print';
+    bottomNav.className = 'mobile-bottom-nav clean-mobile-dock no-print';
     bottomNav.setAttribute('aria-label', 'التنقل السفلي');
     bottomNav.innerHTML = `
       <a href="/" data-mobile-nav="home">
-        <span class="mobile-nav-icon" aria-hidden="true"><img class="mobile-nav-logo" src="/assets/habibvelora-logo-transparent.png" alt="" /></span>
+        <span class="mobile-nav-icon" aria-hidden="true"><span class="mobile-nav-logo-text">HV</span></span>
         <small>الرئيسية</small>
       </a>
-      <a href="/#categories" data-mobile-nav="categories">
+      <a href="/#collection" data-mobile-nav="categories">
         <span class="mobile-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h7v7H4zM13 5h7v7h-7zM4 14h7v5H4zM13 14h7v5h-7z"/></svg></span>
         <small>الأقسام</small>
       </a>
-      <button id="mobileNavLanguageToggle" type="button" data-mobile-nav="language">
-        <span class="mobile-nav-icon" aria-hidden="true">EN</span>
-        <small>اللغة</small>
-      </button>
-      <a href="/follow" data-mobile-nav="follow">
-        <span class="mobile-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        <small>تابعينا</small>
+      <a href="/order-tracking" data-mobile-nav="tracking">
+        <span class="mobile-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h4l2-4 4 8 2-4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <small>تتبع</small>
       </a>
       <a href="/cart" data-mobile-nav="cart">
-        <span class="mobile-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5h2l2 10h9l2-7H8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="19" r="1.4"/><circle cx="18" cy="19" r="1.4"/></svg></span>
-        <span class="mobile-cart-count" data-mobile-cart-count hidden>0</span>
+        <b class="mobile-cart-count" data-mobile-cart-count>0</b>
         <small>السلة</small>
       </a>
       <a href="/after-sales" data-mobile-nav="returns">
-        <span class="mobile-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 7h9a4 4 0 0 1 0 8H6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 4 6 7l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="mobile-nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M9 7 5 11l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M5 11h9.5a4.5 4.5 0 1 1 0 9H12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
         <small>المرتجع</small>
       </a>
     `;
@@ -2262,13 +2678,13 @@
       const href = link.getAttribute('href') || '';
       let active = false;
 
-      if (href === '/' && pathname === '/' && !hash) {
+      if (href === '/' && pathname === '/' && hash !== '#collection') {
         active = true;
-      } else if (href === '/#categories' && ((pathname === '/' && hash === '#categories') || pathname === '/category')) {
+      } else if (href === '/#collection' && ((pathname === '/' && hash === '#collection') || pathname === '/category')) {
         active = true;
-      } else if (href === '/#collection' && pathname === '/' && hash === '#collection') {
+      } else if (href === '/products' && pathname === '/products') {
         active = true;
-      } else if (href === '/follow' && pathname === '/follow') {
+      } else if (href === '/order-tracking' && pathname === '/order-tracking') {
         active = true;
       } else if (href === '/cart' && pathname === '/cart') {
         active = true;
@@ -2292,11 +2708,6 @@
 
     applyRouteFilters();
     renderCategoryPageHeader();
-    if (shouldRenderCategoryShowcase()) {
-      renderCategoryShowcase();
-      return;
-    }
-
     const visibleProducts = filterProducts();
     renderCategoryPageHeader();
     elements.productGrid.className = 'product-grid';
@@ -2317,104 +2728,11 @@
       fragment.appendChild(buildProductCard(product, index));
     });
     elements.productGrid.appendChild(fragment);
-  }
-
-  function featureImagesForCategory(category) {
-    return dedupeList((category?.products || [])
-      .flatMap((product) => getProductGallery(product))
-      .filter(Boolean));
-  }
-
-  function renderCategoryShowcase() {
-    const categories = getCategoryItems({ includeProductCategories: true })
-      .map((category) => ({
-        ...category,
-        products: productsForCategory(category.value),
-      }))
-      .filter((category) => category.products.length);
-
-    elements.productGrid.className = 'category-showcase';
-    elements.productGrid.innerHTML = '';
-
-    if (!categories.length) {
-      elements.productGrid.innerHTML = `
-        <div class="empty-state">
-          <strong>\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0646\u062a\u062c\u0627\u062a \u0645\u062a\u0627\u062d\u0629 \u062d\u0627\u0644\u064a\u064b\u0627</strong>
-          <p>\u0623\u0636\u0641 \u0645\u0646\u062a\u062c\u0627\u062a \u0645\u0646 \u0644\u0648\u062d\u0629 \u0627\u0644\u062a\u062d\u0643\u0645 \u0644\u062a\u0638\u0647\u0631 \u0647\u0646\u0627.</p>
-        </div>
-      `;
-      return;
-    }
-
-    const fragment = document.createDocumentFragment();
-    const dailyCategoryPicks = categories
-      .map((category) => ({
-        category,
-        product: rotateProductsForCategory(
-          category.products.filter((product) => product.stock !== 0),
-          `${category.value}-${Math.floor(Date.now() / 30000)}`,
-          1
-        )[0],
-      }))
-      .filter((item) => item.product);
-
-    if (dailyCategoryPicks.length) {
-      const smartSection = document.createElement('section');
-      smartSection.className = 'category-products-section smart-products-section';
-      smartSection.dataset.categorySection = 'smart-picks';
-      smartSection.style.setProperty('--section-index', 0);
-      smartSection.innerHTML = `
-        <div class="category-products-head">
-          <div>
-            <p class="eyebrow">اختيارات اليوم</p>
-            <h3>مدخل سريع لكل قسم</h3>
-            <span>صورة واحدة من كل قسم تفتح المجموعة الكاملة بشكل أهدأ.</span>
-          </div>
-        </div>
-        <div class="category-products-grid smart-products-grid daily-category-grid"></div>
-      `;
-
-      const smartGrid = smartSection.querySelector('.smart-products-grid');
-      dailyCategoryPicks.forEach((item, productIndex) => {
-        smartGrid.appendChild(buildHomeFeatureCard(item.product, productIndex, item.category));
-      });
-      fragment.appendChild(smartSection);
-    }
-
-    elements.productGrid.appendChild(fragment);
-  }
-
-  function buildHomeFeatureCard(product, index, categoryOverride = null) {
-    const card = document.createElement('article');
-    const tone = getTone(product.tone ?? index);
-    const categoryImages = featureImagesForCategory(categoryOverride);
-    const gallery = categoryImages.length ? categoryImages : getProductGallery(product);
-    const primaryImage = gallery[0] || product.image;
-    const category = canonicalCategory(product.category, 'all');
-    const categoryMeta = categoryOverride || getCategoryItems({ includeProductCategories: true }).find((item) => item.value === category);
-    const categoryTitle = categoryMeta?.title || category;
-    const imagePriority = index < 2;
-
-    card.className = 'home-feature-card';
-    card.dataset.action = 'view-category';
-    card.dataset.category = category;
-    card.style.setProperty('--card-index', index);
-    card.style.setProperty('--tone-from', tone.from);
-    card.style.setProperty('--tone-to', tone.to);
-    card.style.setProperty('--tone-glow', tone.glow);
-    card.innerHTML = `
-      <button type="button" class="home-feature-link" data-action="view-category" data-category="${escapeHtml(category)}" aria-label="عرض قسم ${escapeHtml(categoryTitle)}">
-        <span class="home-feature-media">
-          <img class="primary" src="${escapeHtml(primaryImage)}" alt="${escapeHtml(categoryTitle)}" loading="${imagePriority ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${imagePriority ? 'high' : 'auto'}" />
-        </span>
-        <span class="home-feature-content">
-          <small>من قسم ${escapeHtml(categoryTitle)}</small>
-          <strong>${escapeHtml(categoryTitle)}</strong>
-          <em>${escapeHtml(categoryMeta?.description || product.note || 'اختيار أنيق من المجموعة')}</em>
-        </span>
-      </button>
-    `;
-    return card;
+    elements.productGrid.querySelectorAll('[data-product-card-image]').forEach((image) => {
+      if (image.complete) {
+        markProductImageReady(image);
+      }
+    });
   }
 
   function buildProductCard(product, index) {
@@ -2423,8 +2741,6 @@
     const wishlistActive = state.wishlist.includes(product.id);
     const badge = smartBadge(product);
     const discount = calculateDiscount(product);
-    const stockLabel = availabilityLabel(product.stock);
-    const stockClass = availabilityClass(product.stock);
     const priceOptions = normalizePriceOptions(product.priceOptions);
     const price = formatProductCardPrice(product);
     const oldPrice = !priceOptions.length && product.compareAtPrice > product.price ? formatMoney(product.compareAtPrice) : '';
@@ -2432,7 +2748,7 @@
     const primaryImage = gallery[0] || product.image;
     const rating = product.rating > 0 ? `${formatDecimal(product.rating, 1)}/5` : '';
     const pageUrl = buildProductPageUrl(product.id);
-    const imagePriority = index < 4;
+    const imagePriority = document.body?.dataset.page === 'category' ? index < 12 : index < 8;
     const imageLoading = imagePriority ? 'eager' : 'lazy';
     const fetchPriority = imagePriority ? 'high' : 'auto';
 
@@ -2442,15 +2758,19 @@
     card.style.setProperty('--tone-to', tone.to);
     card.style.setProperty('--tone-glow', tone.glow);
     card.dataset.productId = product.id;
+    card.dataset.galleryIndex = '0';
+    card.tabIndex = 0;
+    card.setAttribute('role', 'link');
+    card.setAttribute('aria-label', `فتح صفحة ${product.name}`);
     card.innerHTML = `
-      <div class="product-media loaded">
-        <button type="button" class="wishlist-toggle${wishlistActive ? ' active' : ''}" data-action="toggle-wishlist" aria-label="إضافة إلى المفضلة" aria-pressed="${wishlistActive ? 'true' : 'false'}">
-          <span aria-hidden="true">${wishlistActive ? '\u0645\u062d\u0641\u0648\u0638' : '\u062d\u0641\u0638'}</span>
+      <div class="product-media is-loading">
+        <button type="button" class="wishlist-toggle${wishlistActive ? ' active' : ''}" data-action="toggle-wishlist" aria-label="${wishlistActive ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}" aria-pressed="${wishlistActive ? 'true' : 'false'}">
+          <span aria-hidden="true">${wishlistActive ? '♥' : '♡'}</span>
         </button>
         <span class="product-badge ${escapeHtml(badge.className)}">${escapeHtml(badge.label)}</span>
-        <span class="product-status ${stockClass}">${escapeHtml(stockLabel)}</span>
         <a class="product-image-preview-trigger" href="${escapeHtml(pageUrl)}" data-action="view-details" aria-label="فتح صفحة ${escapeHtml(product.name)}"></a>
-        <img class="product-image primary" src="${escapeHtml(primaryImage)}" alt="${escapeHtml(product.name)}" loading="${imageLoading}" decoding="async" fetchpriority="${fetchPriority}" />
+        <img class="product-image primary" data-product-card-image src="${escapeHtml(primaryImage)}" alt="${escapeHtml(product.name)}" loading="${imageLoading}" decoding="async" fetchpriority="${fetchPriority}" />
+        ${buildProductCardGalleryControls(gallery)}
       </div>
       <div class="product-meta">
         <div class="product-meta-top">
@@ -2474,7 +2794,7 @@
         </div>
         ${buildProductCardOptions(product)}
         <div class="product-actions">
-          <button type="button" class="primary-btn" data-action="add-to-cart">أضف للسلة</button>
+          <button type="button" class="primary-btn" data-action="add-to-cart">إضافة سريعة</button>
           <a class="secondary-btn" href="${escapeHtml(pageUrl)}" data-action="view-details">صفحة المنتج</a>
         </div>
       </div>
@@ -2489,6 +2809,7 @@
 
     syncCartWithInventory();
     updateTotals();
+    enhanceCheckoutButton();
 
     if (!state.cart.length) {
       elements.cartList.innerHTML = `
@@ -2727,8 +3048,9 @@
   }
 
   function clearNotifications() {
+    writeClearMarker('notifications');
     state.notifications = [];
-    saveNotifications();
+    clearStoredCollection('notifications');
     renderNotifications();
     renderSummary();
     showToast('تم مسح التنبيهات', 'تم تفريغ قائمة التنبيهات بنجاح.', 'success');
@@ -3119,26 +3441,12 @@
     updateMobileBottomNavState();
   }
 
-  function showCategoryShowcase() {
-    state.filters.category = 'all';
-    state.filters.query = '';
-    state.filters.wishlistOnly = false;
-    state.filters.showcaseOnly = true;
-    if (elements.productSearch) {
-      elements.productSearch.value = '';
-    }
-    renderCategoryButtons();
-    updateWishlistToggle();
-    renderProducts();
-  }
-
   function renderAll() {
     setTheme(state.theme);
     setDashboardVisible(state.adminUnlocked);
     updateAdminPanelVisibility();
     updateWishlistToggle();
     renderCategoryButtons();
-    renderDynamicHero();
     renderProducts();
     renderCart();
     renderNotifications();
@@ -3161,7 +3469,8 @@
     const address = normalizeText(elements.customerAddress?.value);
     const governorate = normalizeText(elements.customerGovernorate?.value);
     const area = normalizeText(elements.customerArea?.value);
-    const payment = normalizeText(elements.paymentMethod?.value, 'عند الاستلام');
+    lockPaymentMethodToCash();
+    const payment = cashOnDeliveryPayment();
     const gatewayPayment = isGatewayPayment(payment);
     const vodafonePayment = isVodafoneCashPayment(payment);
     const enteredPaymentReference = normalizeText(elements.paymentReferenceInput?.value);
@@ -3179,9 +3488,7 @@
       return;
     }
 
-    const nextNumber = nextOrderNumber(state.orders);
-    const orderId = `VEL-${getOrderSequenceLabel(nextNumber)}`;
-    const invoiceId = `INV-${getOrderSequenceLabel(nextNumber)}`;
+    const { orderId, invoiceId } = createOrderIdentity();
     const paymentReference = (gatewayPayment || vodafonePayment)
       ? (enteredPaymentReference || createPaymentReference(orderId))
       : '';
@@ -3243,13 +3550,14 @@
 
     let paymentCheckoutUrl = '';
     const submitButton = event.submitter || elements.checkoutForm?.querySelector('button[type="submit"]');
-    const submitButtonText = submitButton?.textContent || '';
+    const submitButtonText = submitButton?.textContent.trim() || 'إتمام الطلب';
+    if (submitButton) {
+      submitButton.disabled = true;
+      setAnimatedFlowButtonLabel(submitButton, gatewayPayment ? 'جاري فتح بوابة الدفع...' : 'جاري حفظ الطلب...');
+    }
+
     if (gatewayPayment) {
       try {
-        if (submitButton) {
-          submitButton.disabled = true;
-          submitButton.textContent = 'جاري فتح بوابة الدفع...';
-        }
         const paymentResponse = await fetch('/api/payment-intention', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3267,7 +3575,19 @@
         showToast('تعذر فتح بوابة الدفع', 'راجع إعدادات Paymob أو جرّب مرة أخرى بعد لحظات.', 'error');
         if (submitButton) {
           submitButton.disabled = false;
-          submitButton.textContent = submitButtonText;
+          setAnimatedFlowButtonLabel(submitButton, submitButtonText);
+        }
+        return;
+      }
+    } else {
+      try {
+        const savedOrder = await persistSingleOrderToDatabase(order);
+        Object.assign(order, savedOrder);
+      } catch (error) {
+        showToast('تعذر حفظ الطلب', 'راجع الاتصال ثم حاول مرة أخرى. لم يتم تسجيل الطلب.', 'error');
+        if (submitButton) {
+          submitButton.disabled = false;
+          setAnimatedFlowButtonLabel(submitButton, submitButtonText);
         }
         return;
       }
@@ -3291,8 +3611,9 @@
     state.orders.unshift(order);
     state.cart = [];
 
-    saveProducts();
-    saveOrders();
+    saveStorage(storageKeys.products, state.products);
+    state.productsDirty = false;
+    saveStorage(storageKeys.orders, state.orders);
     saveCart();
 
     if (state.wishlist.length) {
@@ -3363,7 +3684,8 @@
         }
       });
       order.inventoryState = 'reserved';
-      saveProducts();
+      saveStorage(storageKeys.products, state.products);
+      state.productsDirty = false;
     } else if (status === 'cancelled' && order.inventoryState === 'reserved') {
       order.items.forEach((line) => {
         const product = getProduct(line.productId);
@@ -3372,10 +3694,18 @@
         }
       });
       order.inventoryState = 'restored';
-      saveProducts();
+      saveStorage(storageKeys.products, state.products);
+      state.productsDirty = false;
     }
 
-    saveOrders();
+    saveStorage(storageKeys.orders, state.orders);
+    persistOrderUpdateToDatabase(order).then(() => {
+      syncProductsFromDatabase();
+    }).catch(() => {
+      showToast('تعذر حفظ تحديث الطلب', 'راجع الاتصال ثم حاول مرة أخرى.', 'error');
+      syncOrdersFromDatabase();
+      syncProductsFromDatabase();
+    });
     renderAll();
     renderDashboard();
     addNotification('order', 'تحديث حالة الطلب', `الطلب ${order.id} أصبح الآن ${statusMeta[status].label}.`);
@@ -3407,6 +3737,7 @@
     }
 
     state.editingProductId = product.id;
+    renderProductCategoryOptions(product.category);
     if (elements.productId) elements.productId.value = product.id;
     if (elements.productName) elements.productName.value = product.name;
     if (elements.productCategory) elements.productCategory.value = product.category;
@@ -3433,6 +3764,10 @@
     if (elements.productFeatured) elements.productFeatured.checked = false;
     if (elements.productModelNames) elements.productModelNames.value = '';
     renderPriceOptionRows([]);
+    renderProductCategoryOptions(defaultAdminCategories[0]);
+    window.setTimeout(() => {
+      if (elements.productCategory) elements.productCategory.value = defaultAdminCategories[0];
+    }, 0);
     if (elements.productCategory) elements.productCategory.value = 'حلقان';
     if (elements.productSubmitButton) elements.productSubmitButton.textContent = 'إضافة المنتج';
     if (elements.productResetButton) elements.productResetButton.textContent = 'مسح الحقول';
@@ -3443,8 +3778,29 @@
     const backFile = elements.productBackImage?.files?.[0] || null;
     const sideFile = elements.productSideImage?.files?.[0] || null;
     const modelFiles = Array.from(elements.productModelImages?.files || []);
+    const selectedFiles = [frontFile, backFile, sideFile, ...modelFiles].filter(Boolean);
+    let processedFiles = 0;
 
-    const uploadOne = async (file) => (file ? uploadProductImage(await compressImageFile(file)) : '');
+    const updateImageSaveStatus = () => {
+      if (!elements.productSubmitButton || !selectedFiles.length) {
+        return;
+      }
+
+      elements.productSubmitButton.textContent = `جاري ضغط ورفع الصور ${formatCount(processedFiles)} / ${formatCount(selectedFiles.length)}...`;
+    };
+
+    const uploadOne = async (file) => {
+      if (!file) {
+        return '';
+      }
+
+      processedFiles += 1;
+      updateImageSaveStatus();
+      const compressedImage = await compressImageFile(file);
+      return uploadProductImage(compressedImage);
+    };
+
+    updateImageSaveStatus();
     const front = await uploadOne(frontFile);
     const back = await uploadOne(backFile);
     const side = await uploadOne(sideFile);
@@ -3625,9 +3981,61 @@
     addNotification('system', 'حذف منتج', `تم حذف المنتج ${product.name}.`);
     showToast('تم الحذف', product.name, 'warning');
   }
+
+  function handleProductGalleryPointerDown(event) {
+    const media = event.target.closest('.product-media');
+    const blockingLink = event.target.closest('a') && !event.target.closest('.product-image-preview-trigger');
+    if (!media || event.target.closest('button, input, select, textarea') || blockingLink) {
+      return;
+    }
+
+    const card = media.closest('[data-product-id]');
+    const product = card?.dataset?.productId ? getProduct(card.dataset.productId) : null;
+    if (!card || !product || getProductGallery(product).length < 2) {
+      return;
+    }
+
+    productCardSwipe.card = card;
+    productCardSwipe.productId = product.id;
+    productCardSwipe.startX = event.clientX;
+    productCardSwipe.startY = event.clientY;
+  }
+
+  function handleProductGalleryPointerUp(event) {
+    const card = productCardSwipe.card;
+    const product = productCardSwipe.productId ? getProduct(productCardSwipe.productId) : null;
+    if (!card || !product) {
+      productCardSwipe.card = null;
+      productCardSwipe.productId = '';
+      return;
+    }
+
+    const deltaX = event.clientX - productCardSwipe.startX;
+    const deltaY = event.clientY - productCardSwipe.startY;
+    productCardSwipe.card = null;
+    productCardSwipe.productId = '';
+
+    if (Math.abs(deltaX) < 38 || Math.abs(deltaX) < Math.abs(deltaY) * 1.15) {
+      return;
+    }
+
+    const currentIndex = Number(card.dataset.galleryIndex || 0);
+    const direction = deltaX < 0 ? 1 : -1;
+    card.dataset.gallerySwiped = 'true';
+    setProductCardGalleryImage(card, product, currentIndex + direction);
+    window.setTimeout(() => {
+      delete card.dataset.gallerySwiped;
+    }, 360);
+  }
+
   function handleProductGridClick(event) {
     const actionButton = event.target.closest('[data-action]');
     if (!actionButton) {
+      const clickableCard = event.target.closest('[data-product-id].product-card');
+      const clickableProduct = clickableCard?.dataset?.productId ? getProduct(clickableCard.dataset.productId) : null;
+      if (clickableProduct) {
+        window.location.href = buildProductPageUrl(clickableProduct.id);
+      }
       return;
     }
 
@@ -3643,6 +4051,23 @@
     const action = actionButton.dataset.action;
 
     if (!product) {
+      return;
+    }
+
+    if (card?.dataset.gallerySwiped === 'true') {
+      event.preventDefault();
+      return;
+    }
+
+    if (action === 'card-gallery') {
+      event.preventDefault();
+      event.stopPropagation();
+      const currentIndex = Number(card.dataset.galleryIndex || 0);
+      const hasIndex = actionButton.dataset.index !== undefined;
+      const nextIndex = hasIndex
+        ? Number(actionButton.dataset.index || 0)
+        : currentIndex + Number(actionButton.dataset.direction || 0);
+      setProductCardGalleryImage(card, product, nextIndex);
       return;
     }
 
@@ -3771,7 +4196,7 @@
 
     const category = canonicalCategory(button.dataset.category || 'all', 'all');
     if (category === 'all') {
-      showCategoryShowcase();
+      selectCategory('all');
       document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
@@ -3781,6 +4206,7 @@
 
   function handleStorageSync() {
     state.products = loadProducts();
+    state.customCategories = loadCustomCategories();
     state.cart = loadCart();
     state.wishlist = loadWishlist();
     state.orders = loadOrders();
@@ -3788,8 +4214,7 @@
     state.returnRequests = loadReturnRequests();
     state.theme = loadTheme();
     if (document.body?.dataset.page === 'admin') {
-      state.adminUnlocked = false;
-      loadAdminAccess();
+      state.adminUnlocked = loadAdminAccess();
     }
     const filteredWishlist = state.wishlist.filter((productId) => Boolean(getProduct(productId)));
     if (filteredWishlist.length !== state.wishlist.length) {
@@ -3803,6 +4228,8 @@
     setDashboardVisible(state.adminUnlocked);
     if (document.body?.dataset.page === 'admin' && !state.adminUnlocked) {
       openAdminGate();
+    } else if (document.body?.dataset.page === 'admin') {
+      closeAdminGate();
     }
   }
 
@@ -3842,27 +4269,12 @@
     }
   }
 
-  function openCategoryShowcaseFromLink(event) {
-    const isHome = window.location.pathname === '/';
-    if (!isHome) {
-      return;
-    }
-
-    event.preventDefault();
-    showCategoryShowcase();
-    document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
   function bindEvents() {
     elements.searchButton?.addEventListener('click', () => {
       elements.productSearch?.focus();
     });
 
     elements.wishlistToggle?.addEventListener('click', toggleWishlistFilter);
-
-    elements.themeToggle?.addEventListener('click', () => {
-      setTheme(state.theme === 'dark' ? 'light' : 'dark');
-    });
 
     elements.cartJump?.addEventListener('click', (event) => {
       if (document.body?.dataset.page === 'cart') {
@@ -3873,28 +4285,40 @@
     });
 
     elements.brand?.addEventListener('click', handleBrandShortcut);
-    document.querySelector('.hero-showcase')?.addEventListener('click', handleHeroAdminShortcut);
+
 
     elements.productSearch?.addEventListener('input', (event) => {
       state.filters.query = event.target.value || '';
       renderProducts();
     });
 
-    document.querySelectorAll('a[href="#collection"]').forEach((link) => {
-      link.addEventListener('click', showCategoryShowcase);
-    });
 
-    document.querySelectorAll('a[href="#categories"], a[href="/#categories"]').forEach((link) => {
-      link.addEventListener('click', openCategoryShowcaseFromLink);
-    });
 
     elements.categoryFilters?.addEventListener('click', handleCategoryClick);
     elements.productGrid?.addEventListener('click', handleProductGridClick);
+    elements.productGrid?.addEventListener('load', handleProductCardImageLoad, true);
+    elements.productGrid?.addEventListener('error', handleProductCardImageError, true);
+    observeProductGridOrientations(elements.productGrid);
+    syncMobileMenuActions();
+    window.setTimeout(syncMobileMenuActions, 250);
+    window.setTimeout(syncMobileMenuActions, 900);
+    elements.productGrid?.addEventListener('pointerdown', handleProductGalleryPointerDown);
+    elements.productGrid?.addEventListener('pointerup', handleProductGalleryPointerUp);
+    elements.productGrid?.addEventListener('pointercancel', () => {
+      productCardSwipe.card = null;
+      productCardSwipe.productId = '';
+    });
     elements.productGrid?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         const target = event.target.closest('[data-action]');
         if (target) {
           target.click();
+          return;
+        }
+        const card = event.target.closest('[data-product-id].product-card');
+        if (card) {
+          event.preventDefault();
+          window.location.href = buildProductPageUrl(card.dataset.productId);
         }
       }
     });
@@ -3919,6 +4343,13 @@
     });
     elements.addPriceOptionButton?.addEventListener('click', () => {
       addPriceOptionRow();
+    });
+    elements.addCategoryButton?.addEventListener('click', addCustomCategory);
+    elements.newCategoryName?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addCustomCategory();
+      }
     });
     elements.productPriceOptions?.addEventListener('click', (event) => {
       const removeButton = event.target.closest('[data-action="remove-price-option"]');
@@ -3981,8 +4412,7 @@
     state.orders = loadOrders();
     state.notifications = loadNotifications();
     state.theme = loadTheme();
-    state.adminUnlocked = false;
-    loadAdminAccess();
+    state.adminUnlocked = document.body?.dataset.page === 'admin' ? loadAdminAccess() : false;
     const filteredWishlist = state.wishlist.filter((productId) => Boolean(getProduct(productId)));
     if (filteredWishlist.length !== state.wishlist.length) {
       state.wishlist = filteredWishlist;
@@ -3992,9 +4422,10 @@
     }
 
     setupHeaderSearch();
+    ensureCategoryManager();
     bindEvents();
+    renderProductCategoryOptions();
     renderPriceOptionRows([]);
-    initHeroSlides();
     ensureClearNotificationsButton();
     populateGovernorateSelect();
     ensureMobileBottomNav();
@@ -4004,8 +4435,10 @@
     renderAll();
     setTheme(state.theme);
     setDashboardVisible(state.adminUnlocked);
-    if (elements.adminGate) {
+    if (document.body?.dataset.page === 'admin' && !state.adminUnlocked) {
       openAdminGate();
+    } else if (document.body?.dataset.page === 'admin') {
+      closeAdminGate();
     }
     setAdminSection(state.filters.adminSection);
     updateWishlistToggle();
@@ -4026,6 +4459,8 @@
   }
 
   function renderDashboard() {
+    renderProductCategoryOptions();
+    renderAdminCategoryList();
     renderRequestedProducts();
     renderNotifications();
     renderOrders();

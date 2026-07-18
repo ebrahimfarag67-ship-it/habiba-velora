@@ -9,7 +9,7 @@ export default function ProductsPage({ initialProducts = [] }) {
       <Head>
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="theme-color" content="#f3e4d3" />
+        <meta name="theme-color" content="#03010A" />
         <link rel="icon" href="/assets/habibvelora-logo-transparent.png" type="image/png" />
         <link rel="apple-touch-icon" href="/assets/habibvelora-logo-transparent.png" />
         <title>HabibaVelora | المنتجات</title>
@@ -22,8 +22,7 @@ export default function ProductsPage({ initialProducts = [] }) {
         {`window.veloraInitialProducts=${JSON.stringify(initialProducts).replace(/</g, '\\u003c')};`}
       </Script>
       
-      <Script src="/language.js" strategy="beforeInteractive" />
-      <Script src="/script.js" strategy="beforeInteractive" />
+      <Script src="/language.js" strategy="lazyOnload" />
     </>
   );
 }

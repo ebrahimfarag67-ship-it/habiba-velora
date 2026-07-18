@@ -1,0 +1,305 @@
+/* Global typography system */
+:root {
+  --font-main: "Cairo", "Alexandria", "Segoe UI", Tahoma, Arial, sans-serif;
+  --font-display: "Alexandria", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;
+  --font-brand: "Manrope", "Alexandria", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;
+
+  --type-display: clamp(38px, 28.286px + 2.679vw, 72px);
+  --type-section-title: clamp(30px, 24.857px + 1.429vw, 48px);
+  --type-card-title: clamp(22px, 20.286px + 0.476vw, 28px);
+  --type-body: clamp(16px, 15.429px + 0.179vw, 18px);
+  --type-small-label: 14px;
+
+  --leading-display: 1.05;
+  --leading-section-title: 1.15;
+  --leading-card-title: 1.28;
+  --leading-body: 1.8;
+  --tracking-label: 0.04em;
+
+  --color-body-copy: rgba(255, 255, 255, 0.72);
+  --color-muted-copy: rgba(255, 255, 255, 0.65);
+  --space-title-stack: 24px;
+  --space-content-after-copy: 80px;
+  --space-section: 96px;
+}
+
+body {
+  font-family: var(--font-main);
+  font-size: var(--type-body);
+  font-weight: 500;
+  line-height: var(--leading-body);
+}
+
+.text-display,
+.section-heading h1,
+.content-hero h1,
+.about-hero h1,
+.cart-page-heading h1,
+.category-page-heading h1 {
+  margin: 0;
+  max-width: 1100px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--type-display);
+  font-weight: 700;
+  line-height: var(--leading-display);
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.text-section-title,
+.section-heading h2,
+.content-hero h2,
+.clean-process-head h2,
+.clean-catalog-head h2,
+.velora-3d-copy h2,
+.product-page-summary h2,
+.panel-header h2,
+.return-form-panel h2,
+.return-summary-panel h2,
+.invoice-print-card h1,
+.order-success-panel h2 {
+  margin: 0;
+  max-width: 1100px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--type-section-title);
+  font-weight: 600;
+  line-height: var(--leading-section-title);
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.text-card-title,
+.panel-header h3,
+.clean-category-info h3,
+.product-card h3,
+.card-content h3,
+.product-page-related-card strong,
+.clean-process-title,
+.clean-shipping-note strong,
+.about-side-note strong,
+.about-values article span,
+.follow-link-card strong,
+.payment-success-box strong,
+.order-success-codes strong,
+.summary-card h3 {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--type-card-title);
+  font-weight: 600;
+  line-height: var(--leading-card-title);
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.text-body,
+p,
+.section-copy,
+.content-card p,
+.content-hero p,
+.clean-process-head p,
+.clean-catalog-head p,
+.product-page-copy,
+.form-hint,
+.gate-copy,
+.cart-item-copy p,
+.product-note,
+.tracking-timeline span,
+.invoice-brand p,
+.about-story-card p,
+.about-side-note p,
+.about-values article p,
+.follow-link-card small,
+.clean-process-copy,
+.clean-shipping-note p,
+.order-success-copy,
+.payment-success-box p {
+  color: var(--color-body-copy);
+  font-size: var(--type-body);
+  font-weight: 500;
+  line-height: var(--leading-body);
+}
+
+.text-muted,
+.brand-copy small,
+.products-topbar small,
+.empty-state p,
+.empty-state small,
+.product-old-price,
+.cart-item-copy small,
+.velora-footer-links span {
+  color: var(--color-muted-copy);
+}
+
+.text-label,
+.eyebrow,
+.clean-process-kicker,
+.about-eyebrow,
+.velora-footer-kicker,
+.product-category,
+.variant-label,
+.clean-category-info small,
+.product-badge,
+.stock-pill,
+.discount-pill,
+.order-success-codes span,
+.payment-success-grid small,
+.payment-success-box span {
+  color: var(--color-muted-copy);
+  font-family: var(--font-main);
+  font-size: var(--type-small-label);
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.section-heading,
+.content-hero,
+.about-hero,
+.clean-process-head,
+.clean-catalog-head,
+.category-page-heading,
+.cart-page-heading {
+  row-gap: var(--space-title-stack);
+}
+
+.section-heading > :is(.eyebrow, .text-label),
+.content-hero > :is(.eyebrow, .text-label),
+.about-hero > :is(.about-eyebrow, .text-label),
+.clean-process-head > :is(.clean-process-kicker, p:first-child),
+.clean-catalog-head > p:first-child,
+.category-page-heading > .eyebrow,
+.cart-page-heading > .eyebrow {
+  margin-bottom: 0;
+}
+
+.section-heading :is(h1, h2) + p,
+.content-hero :is(h1, h2) + p,
+.about-hero h1 + p,
+.clean-process-head h2 + p,
+.clean-catalog-head h2 + p,
+.category-page-heading h1 + p,
+.cart-page-heading h1 + p {
+  max-width: 720px;
+  margin-top: 0;
+}
+
+.section-heading + *,
+.content-hero + *,
+.about-hero + *,
+.clean-process-head + *,
+.clean-catalog-head + *,
+.category-page-heading + *,
+.cart-page-heading + * {
+  margin-top: var(--space-content-after-copy);
+}
+
+.clean-section {
+  padding-block: var(--space-section);
+}
+
+.clean-catalog,
+.velora-3d-signature,
+.clean-shipping-policy {
+  padding-block: var(--space-section);
+}
+
+.clean-shipping-head h2,
+#shippingPolicyTitle {
+  max-width: 1100px;
+  font-size: var(--type-section-title);
+  font-weight: 600;
+  line-height: var(--leading-section-title);
+}
+
+.clean-shipping-head p,
+.clean-shipping-head h2 + p {
+  max-width: 720px;
+}
+
+.clean-shipping-head {
+  margin-bottom: var(--space-content-after-copy);
+}
+
+.primary-btn,
+.secondary-btn,
+.icon-btn,
+.action-btn,
+.admin-tab,
+.cart-icon-btn,
+.clean-cart-link,
+.clean-nav a,
+.products-topnav a,
+.topnav a,
+.variant-chip,
+.model-choice,
+.product-card-gallery-button,
+.nav-button,
+.qty-btn,
+.remove-link,
+label,
+.brand-copy strong,
+.products-topbar strong,
+.clean-header-brand strong,
+.product-price,
+.quantity-stepper button {
+  font-weight: 700;
+}
+
+.velora-monogram-layer,
+.velora-monogram-core,
+.velora-monogram-shine,
+.mobile-nav-logo-text,
+.brand-mark-fallback {
+  font-weight: 700;
+}
+
+@media (max-width: 1120px) {
+  :root {
+    --type-display: clamp(38px, 32.154px + 1.623vw, 52px);
+    --type-section-title: clamp(30px, 26.662px + 0.927vw, 38px);
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --type-display: 38px;
+    --type-section-title: 30px;
+    --type-card-title: 22px;
+    --type-body: 16px;
+    --space-content-after-copy: 48px;
+    --space-section: 64px;
+  }
+
+  .text-display,
+  .section-heading h1,
+  .content-hero h1,
+  .about-hero h1,
+  .cart-page-heading h1,
+  .category-page-heading h1 {
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
+
+  .section-heading,
+  .content-hero,
+  .about-hero,
+  .clean-process-head,
+  .clean-catalog-head,
+  .category-page-heading,
+  .cart-page-heading {
+    row-gap: 18px;
+  }
+
+  .section-heading + *,
+  .content-hero + *,
+  .about-hero + *,
+  .clean-process-head + *,
+  .clean-catalog-head + *,
+  .category-page-heading + *,
+  .cart-page-heading + * {
+    margin-top: var(--space-content-after-copy);
+  }
+}

@@ -41,16 +41,13 @@ function categoryBodyHtml(categoryName) {
       <nav class="topnav" aria-label="التنقل الرئيسي">
         <a href="/">الرئيسية</a>
         <a href="/#categories">الأقسام</a>
-        <a href="/follow">تابعينا</a>
         <a href="/order-tracking">متابعة الطلب</a>
         <a href="/after-sales">فاتورة المرتجع</a>
+        <a href="/follow">تابعينا</a>
+        <a href="/about">قصتنا</a>
       </nav>
 
       <div class="top-actions">
-        <button id="themeToggle" class="icon-btn" type="button" aria-label="تبديل الوضع" aria-pressed="false">
-          <span aria-hidden="true"></span>
-          <small>داكن</small>
-        </button>
         <a id="cartJump" class="cart-icon-btn" href="/cart" aria-label="سلة الشراء">
           <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
             <path d="M6 6h15l-1.5 7.5H8.1L7 7.5H5M8.5 14.5h10.8a1 1 0 0 1 .98.79l.72 3.6a1 1 0 0 1-.98 1.21H10.3a1 1 0 0 1-.98-.79L7.1 5.8A1 1 0 0 0 6.12 5H3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -59,23 +56,21 @@ function categoryBodyHtml(categoryName) {
           </svg>
           <span id="cartCount" class="cart-count-badge">0</span>
         </a>
+        <a href="/#collection" class="secondary-btn category-back-link">رجوع للمتجر</a>
       </div>
     </header>
 
     <main>
       <section class="section-block reveal category-page-hero" style="--delay: 0.05s;">
-        <a class="secondary-btn category-return-btn" href="/#collection">العودة إلى المتجر</a>
+        <a href="/#collection" class="category-mobile-store-link" aria-label="رجوع إلى المتجر">
+          <span aria-hidden="true">‹</span>
+          <strong>رجوع إلى المتجر</strong>
+        </a>
+
         <div class="category-page-heading">
           <p class="eyebrow">مجموعة HabibaVelora</p>
           <h1 id="categoryPageTitle">${safeCategory}</h1>
           <p id="categoryPageCopy">اختاري من منتجات القسم وافتحي صفحة المنتج للتفاصيل والطلب.</p>
-        </div>
-
-        <div class="catalog-tools catalog-tools-minimal category-page-tools">
-          <label class="search-field compact">
-            <span>بحث داخل المجموعة</span>
-            <input id="productSearch" type="search" aria-label="بحث المنتجات" placeholder="اكتبي اسم المنتج..." />
-          </label>
         </div>
 
         <div class="catalog-shell category-page-catalog">

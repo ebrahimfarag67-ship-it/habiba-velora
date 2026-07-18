@@ -1,5 +1,24 @@
-import { readOrders, statusLabel, updateOrderStatus } from '../../lib/orders-store';
-import { sendTelegramMessage } from '../../lib/telegram';
+import { findOrder, statusLabel, updateOrderStatus, upsertOrder } from '../../lib/orders-store';
+import { closeTelegramForumTopic, reopenTelegramForumTopic, sendTelegramMessage } from '../../lib/telegram';
+
+function telegramOptions(order) {
+  const messageThreadId = Number(order.telegramThreadId || 0) || null;
+  if (messageThreadId) {
+    return { message_thread_id: messageThreadId };
+  }
+
+  const messageId = Number(order.telegramMessageId || 0) || null;
+  if (messageId) {
+    return {
+      reply_parameters: {
+        message_id: messageId,
+        allow_sending_without_reply: true,
+      },
+    };
+  }
+
+  return {};
+}
 
 function pageHtml({ order, token, result = null }) {
   const deliveredUrl = `/api/delivery-scan?o=${encodeURIComponent(order.id)}&t=${encodeURIComponent(token)}&a=delivered`;
@@ -56,8 +75,7 @@ export default async function handler(request, response) {
   const orderId = String(request.query?.o || '').trim();
   const token = String(request.query?.t || '').trim();
   const action = String(request.query?.a || '').trim();
-  const orders = await readOrders();
-  const order = orders.find((item) => String(item.id) === orderId);
+  const order = await findOrder(orderId);
 
   response.setHeader('Content-Type', 'text/html; charset=utf-8');
   response.setHeader('X-Robots-Tag', 'noindex, nofollow');
@@ -77,7 +95,7 @@ export default async function handler(request, response) {
     return;
   }
 
-  const nextStatus = action === 'delivered' ? 'delivered' : 'cancelled';
+  const nextStatus = action === 'delivered' ? 'delivered' : 'return_requested';
   const note = action === 'delivered'
     ? '\u0623\u0643\u062f \u0627\u0644\u0645\u0646\u062f\u0648\u0628 \u062a\u0633\u0644\u064a\u0645 \u0627\u0644\u0637\u0644\u0628 \u0644\u0644\u0639\u0645\u064a\u0644'
     : '\u0633\u062c\u0644 \u0627\u0644\u0645\u0646\u062f\u0648\u0628 \u0631\u0641\u0636 \u0627\u0644\u0639\u0645\u064a\u0644 \u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0637\u0644\u0628';
@@ -86,13 +104,29 @@ export default async function handler(request, response) {
     ? '\u062a\u0645 \u062a\u0633\u0644\u064a\u0645 \u0627\u0644\u0637\u0644\u0628 \u0644\u0644\u0639\u0645\u064a\u0644'
     : '\u0631\u0641\u0636 \u0627\u0644\u0639\u0645\u064a\u0644 \u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0637\u0644\u0628';
 
+  const messageThreadId = Number(updated.telegramThreadId || 0) || null;
+  if (action === 'rejected' && messageThreadId) {
+    await reopenTelegramForumTopic(messageThreadId).catch(() => {});
+  }
+
   await sendTelegramMessage([
-    headline,
-    `\u0631\u0642\u0645 \u0627\u0644\u0637\u0644\u0628: ${updated.id}`,
-    `\u0627\u0644\u0639\u0645\u064a\u0644: ${updated.customer || '-'}`,
-    `\u0627\u0644\u0647\u0627\u062a\u0641: ${updated.phone || '-'}`,
-    `\u0627\u0644\u062d\u0627\u0644\u0629: ${action === 'delivered' ? '\u062a\u0645 \u0627\u0644\u062a\u0633\u0644\u064a\u0645' : '\u0631\u0641\u0636 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645'}`,
-  ].join('\n'));
+    `<b>${headline}</b>`,
+    '━━━━━━━━━━━━━━━━━━━━',
+    `• <b>رقم الطلب:</b> <code>${updated.id}</code>`,
+    `• <b>العميل:</b> ${updated.customer || '-'}`,
+    `• <b>الهاتف:</b> <code>${updated.phone || '-'}</code>`,
+    `• <b>الحالة:</b> ${action === 'delivered' ? 'تم التسليم' : 'مرتجع / رفض الاستلام'}`,
+  ].join('\n'), null, {
+    parse_mode: 'HTML',
+    ...telegramOptions(updated),
+  });
+
+  if (action === 'delivered' && messageThreadId) {
+    await closeTelegramForumTopic(messageThreadId).catch(() => {});
+    await upsertOrder({ ...updated, telegramThreadStatus: 'closed' }).catch(() => {});
+  } else if (action === 'rejected') {
+    await upsertOrder({ ...updated, telegramThreadStatus: 'open' }).catch(() => {});
+  }
 
   response.status(200).send(pageHtml({ order: updated, token, result: action }));
 }

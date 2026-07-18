@@ -1,5 +1,6 @@
 import { isOrderStoreConfigured, upsertOrder } from '../../lib/orders-store';
 import { createPaymobIntention, paymobConfigured } from '../../lib/paymob';
+import { reserveProductsForOrder, restoreProductsForOrder } from '../../lib/products-store';
 import { publicBaseUrl } from '../../lib/telegram';
 
 export const config = {
@@ -29,6 +30,11 @@ export default async function handler(request, response) {
     return;
   }
 
+  if (process.env.ENABLE_ONLINE_PAYMENTS !== 'true') {
+    response.status(503).json({ message: 'Online payments are temporarily disabled.' });
+    return;
+  }
+
   if (!isOrderStoreConfigured()) {
     response.status(503).json({ message: 'Order storage is not configured.' });
     return;
@@ -50,20 +56,32 @@ export default async function handler(request, response) {
 
     const baseUrl = publicBaseUrl(request);
     const { intention, checkoutUrl } = await createPaymobIntention(order, { baseUrl });
-    const savedOrder = await upsertOrder({
-      ...order,
-      paymentReference: order.paymentReference || order.id,
-      paymentGatewayReference: String(intention.id || intention.intention_order_id || intention.order || ''),
-    });
+    let inventoryReserved = false;
+    try {
+      await reserveProductsForOrder(order.items);
+      inventoryReserved = true;
+      const savedOrder = await upsertOrder({
+        ...order,
+        inventoryState: 'reserved',
+        paymentReference: order.paymentReference || order.id,
+        paymentGatewayReference: String(intention.id || intention.intention_order_id || intention.order || ''),
+      });
 
-    response.status(200).json({
-      ok: true,
-      order: savedOrder,
-      checkoutUrl,
-    });
+      response.status(200).json({
+        ok: true,
+        order: savedOrder,
+        checkoutUrl,
+      });
+    } catch (error) {
+      if (inventoryReserved) {
+        await restoreProductsForOrder(order.items).catch(() => {});
+      }
+      throw error;
+    }
   } catch (error) {
-    response.status(error.statusCode || 500).json({
+    response.status(error?.statusCode || 500).json({
       message: error instanceof Error ? error.message : 'Payment intention error.',
+      shortages: error?.shortages || [],
     });
   }
 }
