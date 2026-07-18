@@ -397,7 +397,7 @@ function FooterSocialIcon({ type }) {
 }
 
 const HERO_TITLE = 'Habiba Velora';
-const REFERENCE_HERO_IMAGE = '/assets/habiba-velora-interface-hero.png';
+const REFERENCE_HERO_IMAGE = '/api/product-image?path=products%2F1780175302885-xu1ai4zdzs.png';
 const FALLBACK_CATEGORY_CARDS = [
   {
     name: 'سلاسل',
@@ -548,14 +548,6 @@ function HomeHeroImage({
       aria-labelledby="veloraHeroTitle"
       data-no-translate
     >
-      <img
-        className="home-hero-interface-image"
-        src={REFERENCE_HERO_IMAGE}
-        alt=""
-        loading="eager"
-        decoding="async"
-        fetchPriority="high"
-      />
       <header className="clean-header clean-home-header">
         <nav className="clean-nav" aria-label="Reference hero navigation">
           <a href="#brand-story">قصتي</a>
@@ -565,7 +557,9 @@ function HomeHeroImage({
         </nav>
       </header>
 
-      <h1 id="veloraHeroTitle" className="home-hero-seo-title">Habiba Velora</h1>
+      <div className="home-hero-title-wrap">
+        <SplitHeroTitle />
+      </div>
 
       <div className="home-hero-bottom-bar">
         <p className="home-hero-copy">
@@ -728,51 +722,6 @@ function ReferenceServicesSection() {
 
 function ReferenceProjectsSection({ items }) {
   const categoryItems = items.filter((item) => item.image);
-  const railRef = useRef(null);
-  const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0 });
-
-  function scrollCategoryRail(direction) {
-    const rail = railRef.current;
-    if (!rail) return;
-    rail.scrollBy({
-      left: direction * rail.clientWidth * 0.75,
-      behavior: 'smooth',
-    });
-  }
-
-  function handleRailWheel(event) {
-    const rail = railRef.current;
-    if (!rail || Math.abs(event.deltaY) < Math.abs(event.deltaX)) return;
-    event.preventDefault();
-    rail.scrollLeft += event.deltaY;
-  }
-
-  function handleRailPointerDown(event) {
-    const rail = railRef.current;
-    if (!rail) return;
-    dragRef.current = {
-      active: true,
-      startX: event.clientX,
-      scrollLeft: rail.scrollLeft,
-    };
-    rail.classList.add('is-dragging');
-    rail.setPointerCapture?.(event.pointerId);
-  }
-
-  function handleRailPointerMove(event) {
-    const rail = railRef.current;
-    if (!rail || !dragRef.current.active) return;
-    const distance = event.clientX - dragRef.current.startX;
-    rail.scrollLeft = dragRef.current.scrollLeft - distance;
-  }
-
-  function stopRailDrag(event) {
-    const rail = railRef.current;
-    if (!rail) return;
-    dragRef.current.active = false;
-    rail.classList.remove('is-dragging');
-    rail.releasePointerCapture?.(event.pointerId);
-  }
 
   function handleCategoryPointerMove(event) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -790,23 +739,8 @@ function ReferenceProjectsSection({ items }) {
 
   return (
     <section className="reference-projects-section" id="collection" aria-labelledby="referenceProjectsTitle" data-no-translate>
-      <div className="reference-category-title-row">
-        <h2 id="referenceProjectsTitle" className="reference-gradient-heading">الأقسام</h2>
-        <div className="reference-category-controls" aria-label="تحريك الأقسام">
-          <button type="button" onClick={() => scrollCategoryRail(1)} aria-label="تحريك يمين">‹</button>
-          <button type="button" onClick={() => scrollCategoryRail(-1)} aria-label="تحريك شمال">›</button>
-        </div>
-      </div>
-      <div
-        className="reference-project-stack"
-        ref={railRef}
-        onWheel={handleRailWheel}
-        onPointerDown={handleRailPointerDown}
-        onPointerMove={handleRailPointerMove}
-        onPointerUp={stopRailDrag}
-        onPointerCancel={stopRailDrag}
-        onPointerLeave={stopRailDrag}
-      >
+      <h2 id="referenceProjectsTitle" className="reference-gradient-heading">الأقسام</h2>
+      <div className="reference-project-stack">
         {categoryItems.length > 0 ? categoryItems.map((category, index) => (
           <div className="reference-category-stage" style={{ '--card-index': index }} key={category.name}>
             <article
@@ -1009,9 +943,11 @@ export default function HomePage({ initialProducts = [] }) {
             onCollectionJump={handleCollectionJump}
           />
 
-          <ReferenceProjectsSection items={categoryCards} />
+          <MotionMarqueeSection items={categoryCards} />
 
           <ReferenceAboutSection />
+
+          <ReferenceProjectsSection items={categoryCards} />
 
           <ReferenceJourneySection onCollectionJump={handleCollectionJump} />
 
