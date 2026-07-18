@@ -626,8 +626,8 @@ body[data-page="home"] .home-hero-image::after {
 
 body[data-page="home"] .home-hero-image::before {
   background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.34) 0%, transparent 24%, transparent 72%, rgba(0, 0, 0, 0.62) 100%),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.28), transparent 34%, rgba(0, 0, 0, 0.18));
+    linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, transparent 24%, transparent 72%, rgba(0, 0, 0, 0.58) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.08), transparent 30%, rgba(0, 0, 0, 0.2));
 }
 
 body[data-page="home"] .home-hero-image::after {
@@ -643,8 +643,8 @@ body[data-page="home"] .home-hero-image::after {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center center;
-  filter: saturate(1.02) contrast(1.02);
+  object-position: 34% center;
+  filter: saturate(1.04) contrast(1.04) brightness(1.08);
 }
 
 .home-hero-seo-title {
