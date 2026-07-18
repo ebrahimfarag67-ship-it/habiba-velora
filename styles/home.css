@@ -1338,23 +1338,10 @@ body[data-page="home"] .velora-footer-inner {
   background: #0c0c0c;
   transform:
     translateY(calc(var(--card-index) * 6px))
-    translateX(calc(var(--card-mx, 0) * 10px))
     rotateX(calc(var(--card-index) * -0.45deg))
-    rotateY(calc(var(--card-mx, 0) * -5deg))
-    rotateX(calc(var(--card-my, 0) * 3deg))
     scale(calc(1 - (var(--card-index) * 0.022)));
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
   transform-origin: center top;
-  transition: transform 260ms ease, border-color 220ms ease, box-shadow 220ms ease;
-  will-change: transform;
-}
-
-.reference-project-card:hover,
-.reference-project-card:focus-within {
-  border-color: #fff3d0;
-  box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.42),
-    0 0 42px rgba(255, 206, 128, 0.12);
 }
 
 .reference-project-head {

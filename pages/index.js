@@ -723,31 +723,13 @@ function ReferenceServicesSection() {
 function ReferenceProjectsSection({ items }) {
   const categoryItems = items.filter((item) => item.image);
 
-  function handleCategoryPointerMove(event) {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const mx = ((event.clientX - rect.left) / rect.width - 0.5).toFixed(3);
-    const my = ((event.clientY - rect.top) / rect.height - 0.5).toFixed(3);
-
-    event.currentTarget.style.setProperty('--card-mx', mx);
-    event.currentTarget.style.setProperty('--card-my', my);
-  }
-
-  function handleCategoryPointerLeave(event) {
-    event.currentTarget.style.setProperty('--card-mx', '0');
-    event.currentTarget.style.setProperty('--card-my', '0');
-  }
-
   return (
     <section className="reference-projects-section" id="collection" aria-labelledby="referenceProjectsTitle" data-no-translate>
       <h2 id="referenceProjectsTitle" className="reference-gradient-heading">الأقسام</h2>
       <div className="reference-project-stack">
         {categoryItems.length > 0 ? categoryItems.map((category, index) => (
           <div className="reference-category-stage" style={{ '--card-index': index }} key={category.name}>
-            <article
-              className="reference-project-card reference-category-card"
-              onPointerMove={handleCategoryPointerMove}
-              onPointerLeave={handleCategoryPointerLeave}
-            >
+            <article className="reference-project-card reference-category-card">
               <div className="reference-project-head">
                 <span>{String(index + 1).padStart(2, '0')}</span>
                 <small>{category.count} منتج</small>

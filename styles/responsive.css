@@ -444,32 +444,17 @@
     padding: 72px 14px 70px;
   }
 
-  .reference-project-stack {
-    display: flex;
-    gap: 14px;
-    width: calc(100% + 28px);
-    margin-inline: -14px;
-    padding-inline: 14px;
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: thin;
-  }
-
   .reference-project-card {
     position: relative;
     top: auto;
     min-height: auto;
-    height: 100%;
     border-radius: 34px;
     transform: none;
   }
 
   .reference-category-stage {
-    flex: 0 0 min(86vw, 390px);
     min-height: auto;
-    margin-bottom: 0;
-    scroll-snap-align: center;
+    margin-bottom: 18px;
   }
 
   .reference-project-head {
@@ -496,7 +481,7 @@
   }
 
   .reference-category-media img {
-    min-height: 280px;
+    min-height: 300px;
     border-radius: 28px;
   }
 
